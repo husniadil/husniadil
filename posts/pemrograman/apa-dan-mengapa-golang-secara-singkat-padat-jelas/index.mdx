@@ -1,0 +1,48 @@
+---
+title: Apa dan Mengapa Golang Secara Singkat Padat Jelas
+category: Pemrograman
+author: Husni Adil Makmur
+tags: ['Golang', 'Sejarah Golang']
+date: 2018-10-01
+thumbnail: golang-square.webp
+---
+
+Tulisan ini buat yang pernah denger Golang atau Go, tapi belum pernah praktek. Kalau Anda seorang Gopher atau veteran, skip aja bro.
+
+Ga usah panjang lebar, kalo kepanjangan jadi bikin males baca, nih singkat aja ya, ikuti sampe akhir, ga lama harusnya.
+
+## Awal Mulanya
+
+Pada suatu hari, tepatnya tanggal 21 September 2017, berawal dari 3 orang, Robert Griesemer, Rob Pike dan Ken Thompson, mereka mulai mendesain Golang. Lantas pada bulan Januari 2008, si Ken ini mulai bikin POC-nya, ngulik gitu lah, awalnya sih cuma buat ngetes-ngetes aja, bikin compiler yang cuma buat mengubah bahasa Go jadi bahasa C. Ini baru sekedar coba-coba aja. Nah trus seiring waktu berjalan, beberapa orang tertarik buat join buat ngembangin Go ini lebih jauh. Ya waktu itu masih belum open source. Mulai jadi open source sejak 10 November 2009. Udah banyak banget orang yang join buat berkontribusi untuk pengembangan bahasa ini.
+
+Sekarang udah banyak programmer Go di dunia, tiap hari terus bertambah. Jumlah ini udah jauh melebihi bayangan si pembuat bahasa ini.
+
+Kalo orang yang ngeblog disebut Blogger, kalo orang yang ngoding Go disebut Gopher.
+
+Kalo. kita cari di Internet, Gopher itu semacam tikus tanah. Makanya logo Golang itu mirip tikus tanah unyu gitu. Ga punya nama khusus, cuma Gopher gitu aja.
+
+![Gopher berwarna](./gopher-square.webp 'Gopher berwarna')
+
+![Gopher hitam putih](./gopher-hitam-putih.webp 'Gopher hitam putih')
+
+![Go Logo](./golang-logo-go.webp 'Go Logo')
+
+## Alasan Go Dibuat
+
+Orang-orang Google merasa bahwa lama lama bikin aplikasi kok jadi makin susah, trus yang disalahkan pada akhirnya ya pemilihan bahasa itu sendiri. Agar optimal, orang harus memilih yang **compile nya cepat**, **eksekusinya efisien**, dan juga **mudah** pas ngodingnya maupun pas mbacanya. Tapi ya gak semua bahasa kayak gitu. Tapi yang namanya orang pengennya ya yang mudah ngodingnya, makanya orang-orang lebih suka Python dan Javascript ketimbang C++ atau Java, walaupun lebih lemot.
+
+Nah, ide dari Go ini buat mengkombinasikan ketiga aspek tadi, **compile yang cepat**, **eksekusi yang efisien**, dan **mudah** alias ga belibet. Bahasa pemrograman yang secepat dan seefisien C++ tapi semudah Python, nah loh bayangin aja. Makanya biar bisa dapet tiga aspek itu, bahasanya juga harus simpel, ga boleh kompleks, harus mendukung konkurensi dan garbage collection, struktur dependensi yang jelas, dst. Ini semua harus built-in, ga boleh jadi library sendiri atau tool sendiri.
+
+### Sesimpel Apa
+
+Yup, simpel banget sih. Saking simpelnya, ga ada built-in function atau method buat ngecek apakah sebuah item itu ada di dalam array. Kalo di PHP ada function `in_array`, di JVM (kayak Java, Scala, Kotlin, dst) ada method `contains`, di Python ada `in`. Trus gimana? Ya bikin function sendiri atau pake library orang.
+
+Ketika tulisan ini ditulis, Go gak mengenal Generics, gak mengenal Exception, gak mengenal Assertion, gak bisa overloading method, gak punya tipe Variant, gak punya tipe Covariant, dan bahkan gak bisa If pake style Ternary. Miskin banget yak, fiturnya dikit. Tapi itulah Go, simpel, ga perlu pusing. Gimana dengan OOP? Bisa dibilang Ya, bisa juga Tidak, OOP-nya gak kayak bahasa lain, nyeleneh sendiri.
+
+## Kesimpulan
+
+Tiga kata untuk Anda:
+
+1.  compile yang cepat
+2.  eksekusi yang efisien
+3.  mudah

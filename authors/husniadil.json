@@ -1,0 +1,25 @@
+{
+  "name": "Husni Adil Makmur",
+  "title": "Insinyur Perangkat Lunak",
+  "description": "Saya adalah seorang insinyur perangkat lunak. Saya lebih banyak berkecimpung di dunia backend, namun akhir-akhir ini saya sedang belajar pengembangan aplikasi frontend.",
+  "thumbnail": "husniadil.jpg",
+  "social": [
+    {
+      "name": "GitHub",
+      "url": "https://github.com/husniadil"
+    },
+    {
+      "name": "Twitter",
+      "url": "https://twitter.com/husniadil"
+    },
+    {
+      "name": "Instagram",
+      "url": "https://www.instagram.com/husniadil"
+    },
+    {
+      "name": "LinkedIn",
+      "url": "https://www.linkedin.com/in/husniadil"
+    }
+  ],
+  "skills": ["Software Engineering", "Golang", "SQL", "React"]
+}
