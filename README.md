@@ -21,7 +21,7 @@
 [📦 **Logistics Management System**](https://github.com/sayurbox)  
 Comprehensive platform handling multi-channel delivery (instant/same-day/next-day) with MileApp, Grab, Lalamove integrations
 
-[🤖 **Aisyah AI Telegram Bot**](https://github.com/husniadil/asiyah-ai)  
+[🤖 **Aisyah AI Telegram Bot**](https://github.com/husniadil/aisyah-ai)  
 Serverless AI assistant using Cloudflare Workers + OpenAI API for text/vision/speech processing
 
 [🔐 **Authentication System**](https://github.com/sayurbox)  
