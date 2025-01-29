@@ -1,19 +1,38 @@
-## Hi there 👋
+# Husni Adil Makmur
+**Software Engineering Tech Lead** @ [Sayurbox](https://sayurbox.com)  
+*Building secure, scalable distributed systems* 
 
-### I'm Husni, a software engineer from Indonesia.
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?style=flat&logo=linkedin)](https://www.linkedin.com/in/husniadil)
+[![GitHub](https://img.shields.io/badge/GitHub-Follow-black?style=flat&logo=github)](https://github.com/husniadil)
 
-#### Bio
+## 👋 About Me
+15+ years of experience building mission-critical systems across e-commerce, logistics, and AI/ML services. Currently leading development of:
+- **AI-Powered Services** - LLM APIs, route optimization with Google Vertex AI
+- **Logistics Platform** - Multi-channel delivery system with auto-routing and 3PL integrations
+- **Core Infrastructure** - Auth system, feature flags, event tracking platform
 
-- 🏢 I'm currently working at **Sayurbox**
-- 📖 I'm starting to create **Open Source** stuff
-- 📝 I mostly work on backend side
-- 📚 I'm learning a lot about frontend development
-- 📧 Reach me via [twitter.com/husniadil](https://twitter.com/husniadil)
-- 🤪 Fun fact: I love durian so much
+## 🔧 Core Tech Stack
+**Languages**: Golang • Java • Kotlin • Python • TypeScript  
+**Backend**: Kafka • RabbitMQ • Redis • Elasticsearch • gRPC • Rest API  
+**Cloud/DevOps**: AWS • GCP • Kubernetes • Docker  
+**Mobile**: React Native • Android
 
-#### Links
-- <img src="https://husniadil.com/favicon.ico" width="16px" height="16px" /> Blog: [https://husniadil.com](https://husniadil.com)
-- <img src="https://www.facebook.com/favicon.ico" width="16px" height="16px" /> Facebook: [https://www.facebook.com/husniadil](https://www.facebook.com/husniadil)
-- <img src="https://twitter.com/favicon.ico" width="16px" height="16px" /> Twitter: [https://twitter.com/husniadil](https://twitter.com/husniadil)
-- <img src="https://www.instagram.com/favicon.ico" width="16px" height="16px" /> Instagram: [https://www.instagram.com/husniadil](https://www.instagram.com/husniadil)
-- <img src="https://www.linkedin.com/favicon.ico" width="16px" height="16px" /> Twitter: [https://www.linkedin.com/in/husniadil](https://www.linkedin.com/in/husniadil)
+## 🚀 Key Projects
+[📦 **Logistics Management System**](https://github.com/sayurbox)  
+Comprehensive platform handling multi-channel delivery (instant/same-day/next-day) with MileApp, Grab, Lalamove integrations
+
+[🤖 **Aisyah AI Telegram Bot**](https://github.com/husniadil/asiyah-ai)  
+Serverless AI assistant using Cloudflare Workers + OpenAI API for text/vision/speech processing
+
+[🔐 **Authentication System**](https://github.com/sayurbox)  
+Scalable auth service with social login, OTP support and JWT/RSA implementation
+
+## 🏅 Certifications
+`2010` Professional Developer Certification (BNSP) - ID: 72202 2132 0002210 2010
+
+## 🎓 Education
+**B.Comp Science** - Universitas Islam Indonesia (3.42 GPA)
+
+---
+
+💡 Previously: Tech Lead @ Sorabel
