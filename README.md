@@ -22,7 +22,7 @@
 Comprehensive platform handling multi-channel delivery (instant/same-day/next-day) with MileApp, Grab, Lalamove integrations
 
 [🤖 **Aisyah AI Telegram Bot**](https://github.com/husniadil/aisyah-ai)  
-Serverless AI assistant using Cloudflare Workers + OpenAI API for text/vision/speech processing
+Serverless AI Telegram bot using Cloudflare Workers + OpenAI API for text/vision/speech processing
 
 [🔐 **Authentication System**](https://github.com/sayurbox)  
 Scalable auth service with social login, OTP support and JWT/RSA implementation
