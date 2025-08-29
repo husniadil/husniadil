@@ -1,0 +1,109 @@
+---
+title: "Getting Started with Next.js"
+date: "2025-04-20"
+publishedTime: "2025-04-20T09:00:00Z"
+modifiedTime: "2025-04-20T09:00:00Z"
+description: "Comprehensive guide to building your first Next.js application with the App Router, covering installation, project structure, page creation, data fetching with Server Components, and styling options."
+tags:
+  [
+    "Next.js",
+    "React",
+    "App Router",
+    "Server Components",
+    "Web Development",
+    "JavaScript",
+    "TypeScript",
+    "Frontend",
+  ]
+status: "archived"
+---
+
+Next.js is a powerful React framework that provides a great developer experience with features like server-side rendering, static site generation, and the new App Router.
+
+## Installation
+
+To create a new Next.js project, run one of the following commands:
+
+```bash
+# Using npm
+npm create next-app@latest my-next-app
+
+# Using pnpm
+pnpm create next-app my-next-app
+
+# Using Yarn
+yarn create next-app my-next-app
+```
+
+## Project Structure
+
+The App Router uses a file-system based router where folders define routes. Here's a basic structure:
+
+```bash
+my-next-app/
+├── app/
+│   ├── page.tsx      # Home page (/)
+│   ├── layout.tsx    # Root layout
+│   └── about/
+│       └── page.tsx  # About page (/about)
+├── public/
+│   └── images/
+│       └── logo.png
+└── package.json
+```
+
+## Creating Pages
+
+In the App Router, you create pages by adding a `page.tsx` file inside a folder:
+
+```tsx
+export default function HomePage() {
+  return (
+    <div>
+      <h1>Welcome to my Next.js site!</h1>
+      <p>This is the home page.</p>
+    </div>
+  );
+}
+```
+
+## Data Fetching
+
+Next.js makes data fetching simple with React Server Components:
+
+```tsx
+async function getUsers() {
+  const res = await fetch("https://jsonplaceholder.typicode.com/users");
+  return res.json();
+}
+
+export default async function UsersPage() {
+  const users = await getUsers();
+
+  return (
+    <div>
+      <h1>Users</h1>
+      <ul>
+        {users.map((user) => (
+          <li key={user.id}>{user.name}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+## Styling Options
+
+Next.js supports various styling methods:
+
+1. **CSS Modules**
+2. **Tailwind CSS**
+3. **CSS-in-JS libraries**
+4. **Global CSS**
+
+## Conclusion
+
+Next.js provides an excellent framework for building modern web applications. With its powerful features and developer-friendly API, you can create fast, SEO-friendly websites with ease.
+
+Start building with Next.js today and see how it can transform your development workflow!

@@ -1,0 +1,274 @@
+---
+title: "Migrasi dari Next.js ke Astro: Perjalanan Menuju Performa yang Lebih Baik"
+date: "2025-08-20"
+publishedTime: "2025-08-20T10:00:00Z"
+modifiedTime: "2025-08-20T10:00:00Z"
+description: "Pengalaman migrasi blog pribadi dari Next.js ke Astro, membahas motivasi perpindahan, proses migrasi content collections, perbandingan performa, dan manfaat yang didapat dari static site generation dengan islands architecture."
+tags:
+  [
+    "Astro",
+    "Next.js",
+    "React",
+    "Static Site Generator",
+    "Web Development",
+    "Blog Migration",
+    "Performance",
+    "Islands Architecture",
+    "MDX",
+    "AI-Assisted Development",
+  ]
+status: "published"
+---
+
+## Satu Lagi Perpindahan Platform
+
+Yep, saya melakukannya lagi. Setelah sebelumnya pindah dari WordPress ke Gatsby, lalu dari Gatsby ke Next.js, kali ini saya memutuskan untuk migrasi lagi ke [Astro](https://astro.build). Mungkin kalian berpikir, "Ini orang kenapa suka banget ganti-ganti platform?" Well, sebagai developer, saya percaya bahwa eksplorasi teknologi baru adalah bagian penting dari continuous learning. Dan kali ini, migrasi ke Astro benar-benar worth it.
+
+## Mengapa Astro?
+
+Setelah menggunakan Next.js selama beberapa bulan, saya mulai menyadari bahwa untuk blog pribadi seperti ini, mungkin saya tidak butuh semua kompleksitas yang ditawarkan Next.js. Don't get me wrong, Next.js adalah framework yang luar biasa, tapi untuk use case blog yang sebagian besar static content, Astro menawarkan pendekatan yang lebih elegant.
+
+### 1. **Zero JavaScript by Default**
+
+Ini adalah game changer buat saya. Astro mengirim zero JavaScript ke browser secara default, kecuali kamu explicitly butuh interactivity. Artinya blog posts yang sebagian besar static content bisa load super cepat tanpa overhead JavaScript yang tidak perlu.
+
+```astro
+---
+// Server-side code, tidak dikirim ke browser
+import Layout from '../layouts/main.astro'
+import { getCollection } from 'astro:content'
+
+const posts = await getCollection('blog')
+---
+
+<Layout>
+  <!-- Pure HTML, no JS overhead -->
+  {posts.map(post => (
+    <article>
+      <h2>{post.data.title}</h2>
+      <p>{post.data.description}</p>
+    </article>
+  ))}
+</Layout>
+```
+
+### 2. **Islands Architecture**
+
+Konsep islands ini brilliant banget. Kamu bisa memilih component mana yang butuh interactivity, dan hanya component itu yang akan di-hydrate di browser. Sisanya tetap static HTML.
+
+```astro
+---
+import InteractiveCounter from '../components/Counter.tsx'
+import StaticBlogCard from '../components/BlogCard.astro'
+---
+
+<!-- Static component, no JS -->
+<StaticBlogCard />
+
+<!-- Interactive component, hydrated on demand -->
+<InteractiveCounter client:load />
+```
+
+### 3. **Content Collections**
+
+Fitur content collections di Astro jauh lebih clean dibanding setup MDX di Next.js. Schema validation, type safety, dan API yang intuitive.
+
+```typescript
+// src/content/config.ts
+import { defineCollection, z } from 'astro:content'
+
+const blogCollection = defineCollection({
+  type: 'content',
+  schema: z.object({
+    title: z.string(),
+    date: z.string(),
+    description: z.string(),
+    tags: z.array(z.string()),
+    status: z.enum(['published', 'draft', 'archived']),
+  })
+})
+
+export const collections = {
+  blog: blogCollection,
+}
+```
+
+## Proses Migrasi: Kolaborasi dengan AI Lagi
+
+Sama seperti waktu membangun blog Next.js, kali ini saya juga berkolaborasi dengan AI assistant—kali ini dengan [Claude Code](https://claude.ai/code). Prosesnya bahkan lebih smooth karena saya sudah punya clear requirements dan struktur content dari proyek Next.js sebelumnya.
+
+Yang menarik, AI assistant kali ini bahkan membantu saya membuat migration plan yang detail dan systematic. Saya tidak hanya migrate content, tapi juga improve arsitektur dan organization dari codebase secara keseluruhan.
+
+### Tantangan yang Dihadapi
+
+#### 1. **Component Migration**
+
+Migrasi component dari React ke Astro component membutuhkan mindset shift. Di Astro, kamu harus explicitly decide mana yang butuh client-side JavaScript dan mana yang cukup static.
+
+```tsx
+// Next.js - Everything is client-side by default
+"use client"
+import { useState } from 'react'
+
+export function Counter() {
+  const [count, setCount] = useState(0)
+  return (
+    <div>
+      <span>{count}</span>
+      <button onClick={() => setCount(c => c + 1)}>+</button>
+    </div>
+  )
+}
+```
+
+```astro
+---
+// Astro - Server-side by default
+// Counter.astro (wrapper)
+import Counter from './Counter.tsx'
+---
+
+<!-- Only hydrate when needed -->
+<Counter client:load />
+```
+
+#### 2. **Routing System**
+
+Next.js app router vs Astro file-based routing memiliki subtle differences. Tapi honestly, Astro's routing system lebih straightforward dan predictable.
+
+```
+# Next.js App Router
+app/
+├── blog/
+│   ├── [slug]/
+│   │   └── page.tsx
+│   └── page.tsx
+
+# Astro
+src/pages/
+├── blog/
+│   ├── [...slug].astro
+│   └── index.astro
+```
+
+#### 3. **Content Processing**
+
+Migrasi dari next-mdx-remote ke Astro content collections membutuhkan restructuring, tapi hasilnya jauh lebih clean dan type-safe.
+
+## Teknologi Stack Comparison
+
+### Next.js Stack (Before)
+
+- **Framework**: Next.js 15 dengan App Router
+- **Styling**: Tailwind CSS 4
+- **Content**: MDX dengan next-mdx-remote
+- **Components**: Radix UI + shadcn/ui
+- **Deployment**: Vercel
+- **Analytics**: Vercel Analytics + Google Analytics
+
+### Astro Stack (After)
+
+- **Framework**: Astro 5 dengan Static Site Generation
+- **Styling**: Tailwind CSS 4 (sama)
+- **Content**: Astro Content Collections dengan MDX
+- **Components**: Radix UI + shadcn/ui (migrated)
+- **Deployment**: Vercel (sama)
+- **Analytics**: Vercel Analytics + Google Analytics (sama)
+
+## Performance Benefits
+
+Perbedaan performa antara Next.js dan Astro version cukup significant:
+
+### Bundle Size
+
+- **Next.js**: ~120KB first load JS
+- **Astro**: ~8KB total JS (hanya untuk interactive components)
+
+### Build Time
+
+- **Next.js**: ~45 seconds
+- **Astro**: ~12 seconds
+
+### Lighthouse Scores
+
+Semua metrics improved, terutama di:
+
+- **Performance**: 92 → 98
+- **Best Practices**: 95 → 100
+- **SEO**: 100 → 100 (consistent)
+
+## Fitur Baru yang Saya Sukai
+
+### 1. **Built-in Image Optimization**
+
+Astro's image optimization out-of-the-box dengan automatic WebP conversion dan responsive image generation.
+
+```astro
+---
+import { Image } from 'astro:assets'
+import heroImage from '../assets/hero.jpg'
+---
+
+<Image
+  src={heroImage}
+  alt="Hero image"
+  width={800}
+  height={600}
+  format="webp"
+/>
+```
+
+### 2. **Type-Safe Environment**
+
+Content collections memberikan type safety yang luar biasa untuk content management.
+
+```typescript
+// Automatically generated types
+import type { CollectionEntry } from 'astro:content'
+
+type BlogPost = CollectionEntry<'blog'>
+
+// Type-safe access to frontmatter
+const post: BlogPost = await getEntry('blog', 'my-post')
+console.log(post.data.title) // TypeScript knows this is string
+```
+
+### 3. **Simplified Analytics**
+
+Integration analytics jadi lebih straightforward tanpa perlu worry tentang hydration issues.
+
+```astro
+---
+// src/components/analytics/GoogleAnalytics.astro
+---
+
+<script>
+  // Inline script, no hydration needed
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'GA_MEASUREMENT_ID');
+</script>
+```
+
+## Developer Experience
+
+Yang paling saya appreciate dari Astro adalah developer experience yang clean dan focused. Kamu tidak perlu mikirin server components vs client components, hydration mismatches, atau complex routing logic. Everything just works.
+
+Hot reload super fast, error messages yang clear, dan development workflow yang streamlined. Plus, dokumentasi Astro luar biasa comprehensive dan well-organized.
+
+## Kesimpulan
+
+Migrasi dari Next.js ke Astro adalah salah satu keputusan tech yang paling saya tidak sesali. Untuk blog pribadi atau content-focused websites, Astro menawarkan:
+
+- **Better Performance** dengan default zero JavaScript
+- **Simpler Development** dengan component-focused architecture
+- **Type Safety** melalui content collections
+- **Faster Builds** dan lighter bundle sizes
+- **Future-proof** dengan growing ecosystem
+
+Tentu saja, ini tidak berarti Next.js adalah pilihan yang salah. Next.js masih unbeatable untuk aplikasi complex yang butuh advanced features seperti server actions, complex data fetching, atau heavy client-side interactivity. Tapi untuk blog atau marketing sites, Astro adalah clear winner.
+
+Buat kalian yang considering migrasi ke Astro, saya highly recommend untuk try it out. Learning curve-nya minimal, terutama kalau kalian sudah familiar dengan React ecosystem. Dan yang pasti, collaboration dengan AI assistant membuat proses migration jadi jauh lebih smooth dan efficient.
+
+Next step? Saya mungkin akan explore lebih dalam tentang view transitions dan server-side functionality di Astro. Let's see apa yang bisa di-improve lagi di masa depan.

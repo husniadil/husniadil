@@ -1,0 +1,195 @@
+---
+title: "Menjalankan Proxmox di Hyper-V: Solusi Home Server di Windows 11 Pro"
+date: "2025-05-04"
+publishedTime: "2025-05-04T08:00:00Z"
+modifiedTime: "2025-05-04T08:00:00Z"
+description: "Panduan lengkap cara menginstall dan mengkonfigurasi Proxmox VE di dalam Hyper-V di Windows 11 Pro, solusi praktis untuk home server tanpa perlu dual-boot atau mengganti sistem operasi utama."
+tags:
+  [
+    "Proxmox",
+    "Hyper-V",
+    "Virtualization",
+    "Windows 11",
+    "Home Server",
+    "Nested Virtualization",
+    "Tutorial",
+  ]
+status: "published"
+image: "https://ik.imagekit.io/2gfia2nrp/blog/solusi-home-server-di-windows-11-pro/proxmox.png?updatedAt=1746337977128"
+---
+
+![Proxmox di Hyper-V](https://ik.imagekit.io/2gfia2nrp/blog/solusi-home-server-di-windows-11-pro/proxmox.png?updatedAt=1746337977128)
+
+## Perjalanan Mencari Solusi Home Server yang Fleksibel
+
+Saya sudah lama ingin punya home server untuk berbagai kebutuhan, mulai dari hosting website pribadi, eksperimen dengan berbagai layanan, sampai penyimpanan data. Setelah bereksperimen dengan beberapa solusi, saya akhirnya memutuskan untuk menjalankan Proxmox VE di dalam Hyper-V.
+
+Buat yang belum familiar, [Proxmox VE](https://www.proxmox.com/en/proxmox-ve) itu platform virtualisasi open source berbasis Debian yang powerful banget. Biasanya Proxmox diinstall langsung di bare metal (hardware fisik), tapi ternyata bisa juga dijalankan sebagai virtual machine di dalam Hyper-V yang ada di Windows 11 Pro. Keren kan?
+
+## Mengapa Saya Memilih Setup Ini?
+
+Ada beberapa alasan kenapa setup ini jadi pilihan saya:
+
+1. **Tetap bisa pakai Windows 11** untuk kebutuhan sehari-hari
+2. **Gak perlu hardware tambahan** khusus untuk server
+3. **Bisa eksplorasi Proxmox** tanpa harus mengorbankan sistem utama
+4. **Fleksibel dan mudah di-reset** kalau ada kesalahan konfigurasi
+
+> 💡 _Catatan:_ Setup ini memerlukan **Windows 11 Pro** karena hanya edisi ini yang mendukung fitur Hyper-V. Pastikan kamu menggunakan versi yang sesuai sebelum memulai.
+
+Saya sendiri menggunakan [**Geekom A8 Mini PC**](https://www.geekompc.com/geekom-a8-mini-pc/) sebagai perangkat utama. Mini PC yang saya pakai ini dilengkapi dengan AMD Ryzen 9 8845HS, 64GB DDR5 RAM (saya upgrade RAMnya dari 32GB ke 64GB), dan 1TB SSD, serta sudah pre-installed Windows 11 Pro. Meskipun ukurannya kecil, performanya cukup mumpuni untuk menjalankan beberapa VM sekaligus.
+
+> 💡 Perlu diingat, karena ini nested virtualization (virtualisasi di dalam virtualisasi), performanya gak akan 100% seperti di bare-metal. Tapi penurunan performa ini biasanya minim, sekitar 10-15% aja, dan gak akan terlalu terasa untuk keperluan home server.
+
+## Apa Saja yang Dibutuhkan?
+
+Sebelum mulai, pastikan kamu sudah punya semua yang dibutuhkan:
+
+- Windows 11 Pro (bukan Home Edition)
+- CPU yang mendukung virtualization (VT-x / AMD-V)
+- Minimal RAM 8 GB (direkomendasikan 16 GB+)
+- Ruang disk minimal 32 GB untuk VM Proxmox
+- File ISO Proxmox VE (bisa didownload [di sini](https://www.proxmox.com/en/downloads))
+
+## Langkah 1: Mengaktifkan Hyper-V di Windows 11 Pro
+
+Langkah pertama yang harus dilakukan adalah mengaktifkan fitur Hyper-V di Windows 11 Pro. Ini gak terlalu rumit kok:
+
+1. Tekan **Win + R**, ketik `optionalfeatures.exe` dan tekan Enter
+2. Pada jendela "Windows Features", centang **Hyper-V** (termasuk Hyper-V Platform dan Hyper-V Management Tools)
+3. Klik OK dan tunggu proses instalasi selesai
+4. Restart komputer saat diminta
+
+Setelah restart, kamu bisa buka **Hyper-V Manager** dari Start Menu. Kalau sudah muncul, berarti Hyper-V berhasil diaktifkan.
+
+## Langkah 2: Membuat Virtual Switch untuk Jaringan
+
+![Virtual Switch Manager](https://ik.imagekit.io/2gfia2nrp/blog/solusi-home-server-di-windows-11-pro/create-virtual-network-switch.png?updatedAt=1746338416519)
+
+Sebelum membuat VM, kita perlu membuat virtual switch dulu supaya Proxmox bisa terhubung ke jaringan:
+
+1. Buka **Hyper-V Manager**
+2. Di panel kanan, klik **Virtual Switch Manager**
+3. Pilih **New virtual network switch** → **External**
+4. Klik **Create Virtual Switch**
+5. Beri nama yang mudah diingat (misalnya `ProxmoxNet`)
+6. Pilih network adapter fisik yang terhubung ke internet
+7. Klik OK untuk menyimpan pengaturan
+
+> 💡 Saya sarankan menggunakan External switch agar VM Proxmox bisa mendapatkan IP dari router yang sama dengan jaringan utama, sehingga mudah diakses dari perangkat lain di jaringan lokal.
+
+## Langkah 3: Membuat VM untuk Proxmox
+
+Sekarang saatnya membuat virtual machine yang akan menjalankan Proxmox:
+
+1. Di Hyper-V Manager, klik kanan nama komputer kamu → **New** → **Virtual Machine**
+2. Ikuti wizard dengan pengaturan berikut:
+
+- Nama: `Proxmox-VE` (atau nama lain yang kamu suka)
+- Generation: Pilih **Generation 2** (lebih modern dan mendukung UEFI)
+- Memory: Minimal 4096 MB (4 GB), lebih baik 8 GB jika RAM kamu cukup
+- Networking: Pilih virtual switch yang tadi sudah kamu buat
+- Virtual Hard Disk: Minimal 32 GB, saya sarankan 64 GB atau lebih
+- Installation Options: Pilih **Install an operating system from a bootable image file** → browse ke file ISO Proxmox yang sudah kamu download
+
+> ⚠️ **Penting:** Jangan langsung jalankan VM-nya setelah selesai dibuat. Ada beberapa pengaturan penting yang harus diubah dulu.
+
+## Langkah 4: Konfigurasi Penting Sebelum Menjalankan VM
+
+### 4.1 Mengaktifkan Nested Virtualization
+
+Agar Proxmox bisa menjalankan VM/container di dalamnya, kita perlu mengaktifkan nested virtualization:
+
+1. Buka PowerShell sebagai Administrator
+2. Jalankan perintah berikut (ganti nama VM sesuai yang kamu buat):
+
+```sh
+Set-VMProcessor -VMName "Proxmox-VE" -ExposeVirtualizationExtensions $true
+```
+
+### 4.2 Menonaktifkan Secure Boot
+
+![Secure Boot](https://ik.imagekit.io/2gfia2nrp/blog/solusi-home-server-di-windows-11-pro/disable-secure-boot.png?updatedAt=1746338314154)
+
+Proxmox tidak mendukung Secure Boot, jadi kita perlu menonaktifkannya:
+
+1. Di Hyper-V Manager, klik kanan VM Proxmox → **Settings**
+2. Di panel kiri, pilih **Security**
+3. Hapus centang pada **Enable Secure Boot**
+4. Klik OK
+
+### 4.3 Mengaktifkan MAC Address Spoofing
+
+![Mac Address Spoofing](https://ik.imagekit.io/2gfia2nrp/blog/solusi-home-server-di-windows-11-pro/enable-mac-address-spoofing.png?updatedAt=1746338220140)
+
+Langkah ini penting agar container (CT) di dalam Proxmox bisa terhubung ke jaringan:
+
+1. Di setting VM yang sama, pilih **Network Adapter**
+2. Klik **Advanced Features**
+3. Centang **Enable MAC address spoofing**
+4. Klik OK
+
+Nah, sekarang VM sudah siap untuk dijalankan.
+
+## Langkah 5: Instalasi Proxmox VE
+
+1. Di Hyper-V Manager, klik kanan VM Proxmox → **Start**
+2. Klik **Connect** untuk membuka console VM
+3. Ikuti langkah-langkah instalasi Proxmox:
+
+- Pilih **Install Proxmox VE**
+- Setujui EULA (End User License Agreement)
+- Pilih target disk untuk instalasi
+- Set lokasi dan zona waktu (pilih Asia/Jakarta untuk Indonesia)
+- Buat password untuk user root dan masukkan email
+- Konfigurasi network (bisa pakai DHCP dulu untuk memudahkan)
+- Tunggu proses instalasi selesai
+
+Setelah instalasi selesai, VM akan restart. Proxmox akan menampilkan IP address yang bisa diakses melalui browser.
+
+## Langkah 6: Akses dan Konfigurasi Awal Proxmox
+
+1. Buka browser di komputer utama (Windows 11) atau dari perangkat lain di jaringan yang sama
+2. Akses Proxmox Web UI dengan URL: `https://<ip-address>:8006`
+
+- Ganti `<ip-address>` dengan IP yang muncul di console Proxmox
+- Abaikan peringatan sertifikat SSL (karena self-signed)
+
+3. Login dengan username `root` dan password yang kamu buat saat instalasi
+
+Setelah berhasil login, ada beberapa konfigurasi awal yang saya sarankan:
+
+### 6.1 Update Repository Proxmox
+
+Secara default, Proxmox menggunakan repository enterprise yang memerlukan subscription. Untuk penggunaan pribadi, kita bisa menggantinya dengan repository gratis:
+
+1. Di panel kiri, pilih node Proxmox (biasanya namanya sesuai hostname)
+2. Pilih tab **Updates** → **Repositories**
+3. Klik kanan repository enterprise → **Disable**
+4. Klik **Add** → pilih **No-Subscription**
+
+### 6.2 Update Sistem
+
+Setelah repository dikonfigurasi, update sistem:
+
+1. Di panel kiri, pilih node Proxmox
+2. Pilih tab **Updates** → **Refresh**
+3. Klik **Upgrade**
+
+## Kesimpulan dan Langkah Selanjutnya
+
+Selamat. Kamu sekarang punya Proxmox VE yang berjalan di dalam Windows 11 Pro melalui Hyper-V. Setup ini memberikan fleksibilitas untuk tetap menggunakan Windows sebagai sistem utama sambil menikmati kemampuan virtualisasi yang powerful dari Proxmox.
+
+Dengan setup ini, saya bisa menjalankan berbagai eksperimen server tanpa perlu khawatir merusak sistem utama. Proxmox juga memudahkan saya untuk membuat backup, snapshot, dan mengelola berbagai VM dan container.
+
+Untuk langkah selanjutnya, kamu bisa mulai membuat container LXC atau VM di dalam Proxmox untuk berbagai kebutuhan seperti:
+
+- DNS server (Pi-hole, AdGuard Home)
+- Database server (MySQL, PostgreSQL, Redis)
+- Media server (Plex, Jellyfin)
+- Home automation (Home Assistant, Homebridge)
+- AI integration (Open WebUI, Ollama)
+- Workflow automation (n8n)
+- dan banyak lagi (kamu bisa pakai [Helper Scripts](https://community-scripts.github.io/ProxmoxVE/scripts) untuk memudahkan instalasi Container dan VM)
+
+Selamat bereksperimen dengan Proxmox 😊

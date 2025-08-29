@@ -1,0 +1,158 @@
+---
+title: "Membangun Blog Pribadi dengan Next.js"
+date: "2025-04-26"
+publishedTime: "2025-04-26T14:00:00Z"
+modifiedTime: "2025-04-26T14:00:00Z"
+description: "Pengalaman membangun blog pribadi menggunakan Next.js, MDX, dan Tailwind CSS, termasuk proses migrasi dari platform sebelumnya, implementasi fitur-fitur modern, dan tantangan yang dihadapi selama pengembangan."
+tags:
+  [
+    "Next.js",
+    "React",
+    "Tailwind CSS",
+    "MDX",
+    "Web Development",
+    "Blog Platform",
+    "TypeScript",
+    "Frontend",
+    "AI-Assisted Development",
+  ]
+status: "published"
+---
+
+## Perjalanan Membangun Blog Pribadi
+
+Setelah beberapa kali berganti platform blog, mulai dari WordPress, lalu Gatsby, akhirnya saya memutuskan untuk membangun ulang blog pribadi saya menggunakan Next.js. Keputusan ini tidak diambil secara mendadak, melainkan hasil dari pengalaman dan eksplorasi saya dengan berbagai teknologi web modern selama beberapa tahun terakhir.
+
+## Kolaborasi dengan AI: Membangun dengan [Windsurf](https://windsurf.com/refer?referral_code=8b890e301d)
+
+Yang menarik, blog ini sebenarnya tidak dibangun dengan cara tradisional yang membutuhkan waktu berhari-hari atau berminggu-minggu. Saya berhasil membangun website ini hanya dalam 1 hari dengan bantuan [Windsurf](https://windsurf.com/refer?referral_code=8b890e301d), sebuah AI assistant untuk pengembangan. Meskipun prosesnya cepat, ini bukan berarti saya hanya duduk diam dan menonton AI bekerja. Saya tetap memikirkan arsitektur, menentukan fitur-fitur yang diinginkan, dan me-review setiap output yang dihasilkan [Windsurf](https://windsurf.com/refer?referral_code=8b890e301d).
+
+Proses kolaborasi dengan AI ini membuka mata saya tentang bagaimana dunia pengembangan software sedang berubah. Kita tidak lagi harus menulis setiap baris kode dari awal, tetapi bisa fokus pada aspek kreatif dan strategis dari pengembangan. Saya percaya bahwa kemampuan untuk beradaptasi dengan perubahan teknologi yang cepat ini akan menjadi keterampilan yang sangat berharga di masa depan.
+
+Dunia saat ini sudah banyak dibantu oleh AI, dan kita sebagai developer harus siap beradaptasi. Bukan berarti AI akan menggantikan programmer, tetapi programmer yang bisa memanfaatkan AI dengan baik akan memiliki keunggulan dibandingkan yang tidak. Ini adalah contoh nyata bagaimana kita bisa bekerja bersama AI untuk menciptakan hasil yang lebih baik dalam waktu yang lebih singkat.
+
+### Mengapa Next.js?
+
+Saya sudah cukup lama menggunakan React untuk berbagai proyek, dan Next.js menawarkan pengalaman developer yang luar biasa dengan fitur-fitur yang sangat membantu, seperti:
+
+1. **App Router** - Sistem routing yang intuitif dan powerful
+2. **Server Components** - Rendering di server yang membuat performa lebih baik
+3. **Image Optimization** - Optimasi gambar otomatis
+4. **API Routes** - Memudahkan pembuatan endpoint API
+
+Dibandingkan dengan Gatsby yang sebelumnya saya gunakan, Next.js terasa lebih fleksibel dan memiliki ekosistem yang lebih berkembang. Meskipun keduanya sama-sama berbasis React, Next.js memberikan kontrol lebih besar dalam menentukan strategi rendering dan data fetching.
+
+## Proses Pengembangan
+
+Proses pengembangan blog ini dimulai dengan membuat struktur dasar menggunakan template Next.js. Saya memilih pendekatan "App Router" yang merupakan fitur terbaru dari Next.js, menggantikan sistem "Pages Router" yang lebih lama.
+
+### Teknologi yang Digunakan
+
+Selain Next.js sebagai framework utama, saya juga menggunakan beberapa teknologi pendukung:
+
+- **TypeScript** - Untuk type safety dan developer experience yang lebih baik
+- **Tailwind CSS** - Untuk styling yang cepat dan konsisten
+- **MDX** - Untuk menulis konten blog dengan komponen React interaktif
+- **shadcn/ui** - Komponen UI yang elegan dan dapat dikustomisasi
+- **ContentLayer** - Untuk mengelola konten MDX dengan lebih efisien
+
+### Implementasi MDX
+
+Salah satu hal yang paling saya sukai dari blog baru ini adalah kemampuan untuk menyisipkan komponen React interaktif langsung di dalam konten blog. Dengan MDX, saya bisa menambahkan komponen seperti:
+
+- Komponen YouTube untuk menyematkan video
+- Counter interaktif untuk demonstrasi state management
+- Syntax highlighting untuk kode dengan dukungan berbagai bahasa pemrograman
+- Komponen UI kustom yang memperkaya pengalaman membaca
+
+```tsx
+// Contoh komponen Counter sederhana
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+
+export function Counter({ initialValue = 0, step = 1 }) {
+  const [count, setCount] = useState(initialValue);
+
+  const increment = () => {
+    setCount((prev) => prev + step);
+  };
+
+  return (
+    <div className="my-4 flex items-center gap-4 rounded-md border p-4">
+      <div className="text-2xl font-bold">{count}</div>
+      <Button onClick={increment}>Tambah {step}</Button>
+    </div>
+  );
+}
+```
+
+## Tantangan yang Dihadapi
+
+Tentu saja, membangun blog dari awal bukanlah tanpa tantangan. Beberapa kesulitan yang saya hadapi:
+
+### 1. Migrasi Konten
+
+Memindahkan konten dari platform lama ke format MDX membutuhkan effort yang tidak sedikit. Saya harus memastikan semua formatting, gambar, dan link tetap berfungsi dengan baik.
+
+### 2. Masalah Hydration
+
+Komponen interaktif di MDX terkadang menyebabkan masalah hydration, di mana konten yang di-render di server berbeda dengan yang di-render di client. Ini membutuhkan pendekatan khusus dengan menggunakan pattern seperti:
+
+```tsx
+"use client";
+
+import { useEffect, useState } from "react";
+
+export function ClientOnlyComponent({ children }) {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) {
+    return null; // atau placeholder
+  }
+
+  return children;
+}
+```
+
+### 3. Performa dan SEO
+
+Memastikan blog memiliki performa yang baik dan SEO yang optimal juga menjadi tantangan tersendiri. Saya harus memperhatikan:
+
+- Metadata yang tepat untuk setiap halaman
+- Structured data untuk Google
+- Core Web Vitals seperti LCP, FID, dan CLS
+- Sitemap dan robots.txt yang benar
+
+## Fitur-fitur yang Saya Banggakan
+
+Ada beberapa fitur yang saya cukup bangga telah berhasil mengimplementasikannya:
+
+### 1. Mode Gelap/Terang
+
+Implementasi toggle tema gelap/terang menggunakan `next-themes` dengan transisi yang halus dan penyimpanan preferensi user.
+
+### 2. Command Menu
+
+Terinspirasi dari Raycast dan aplikasi modern lainnya, saya menambahkan command menu (⌘+K) untuk navigasi cepat ke berbagai bagian blog.
+
+### 3. Komponen MDX Kustom
+
+Saya membuat berbagai komponen MDX kustom untuk memperkaya konten blog, seperti callout boxes, embedded youtube, dan syntax highlighting yang ditingkatkan.
+
+### 4. Analytics Tanpa Cookie
+
+Implementasi analytics yang menghormati privasi pengguna, tanpa menggunakan cookie dan tetap mematuhi regulasi seperti GDPR.
+
+## Kesimpulan
+
+Membangun blog pribadi dengan Next.js telah menjadi pengalaman yang sangat berharga. Selain menghasilkan platform yang sesuai dengan kebutuhan saya, proses ini juga membantu saya memperdalam pemahaman tentang ekosistem React dan Next.js.
+
+Jika Anda tertarik untuk membangun blog serupa, saya sangat merekomendasikan Next.js sebagai framework pilihan. Kombinasi kecepatan development, performa, dan fleksibilitas membuatnya menjadi pilihan yang tepat untuk blog pribadi maupun proyek web lainnya.
+
+Ke depannya, saya berencana untuk terus mengembangkan blog ini dengan menambahkan integrasi dengan AI. Semoga blog ini bisa menjadi tempat berbagi pengetahuan dan pengalaman yang bermanfaat bagi banyak orang.

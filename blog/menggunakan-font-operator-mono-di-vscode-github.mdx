@@ -1,0 +1,118 @@
+---
+title: "Menggunakan Font Operator Mono di VSCode dan GitHub"
+date: "2020-03-25"
+publishedTime: "2020-03-25T08:00:00Z"
+modifiedTime: "2020-03-25T08:00:00Z"
+description: "Tutorial lengkap cara menggunakan font Operator Mono di Visual Studio Code dan GitHub, termasuk pengaturan font, ligatures, dan tema Dark+ Mono, serta cara menggunakan Stylebot untuk mengubah tampilan GitHub."
+tags:
+  [
+    "Visual Studio Code",
+    "VSCode",
+    "Programming Font",
+    "Operator Mono",
+    "Developer Tools",
+    "GitHub",
+    "Stylebot",
+    "Code Editor Customization",
+  ]
+status: "published"
+---
+
+Salah satu custom _font_ untuk programming adalah Operator Mono, _font_ yang harganya cukup fantastis $199.00, ada _font_ alternatif lain bernama Dank Mono yang dijual dengan harga 40.00£. Dua-duanya cukup mahal karena mungkin itu "hanya" sebuah _font_, di mana kamu juga sebenarnya bisa memakai [_font monospace_](https://id.wikipedia.org/wiki/Monospace) bawaan VSCode, atau mentok-mentok pakai `Courier New`.
+
+Memakai custom _font_ membuat pengalaman _programming_-mu lebih menyenangkan, sekalinya pake gak mau balik lagi ke font lama.
+
+Tapi harganya mahal, ngapain buang-buang duit segitu? Setelah _googling_ dengan keyword `operator mono`, di halaman pertama muncul website bernama cufonfonts buat download _font_ gratis, saya gak tahu apakah ini "bajakan" atau gak, kalau misal bajakan, kenapa gak di-_takedown_ font Operator Mono dari website itu. **Coba aja dulu**.
+
+Setelah di-_download_, _install_ aja di komputer. Setelah ke-_install_, gimana nih cara pakainya di VSCode?
+
+**Update**: Sudah di-_take-down_ dari cucufonts. Tapi kamu tetap bisa memakai trik ini buat _nyeting_ font lain.
+
+## Cara pasang Operator Mono di VSCode
+
+Tinggal masuk ke menu `Preferences` > `Settings` aja. Trus cari _setting_ dengan _keyword_ `font`.
+
+<img
+  src="https://ik.imagekit.io/2gfia2nrp/blog/menggunakan-font-operator-mono-di-vscode-github/halaman-pengaturan-font.png"
+  alt="VSCode Font settings"
+  title="Halaman pengaturan font"
+/>
+
+Nah dari situ klik aja `Edit in settings.json` (link di bawah `Font Ligatures`), maka akan muncul _editor json_, dan cari baris berikut.
+
+```json
+  // Controls the font family.
+  "editor.fontFamily": "Consolas, 'Courier New', monospace",
+
+  // Configures font ligatures.
+  "editor.fontLigatures": false,
+```
+
+Ubah _font_-nya dengan menambahkan `'Operator Mono'` di depan `Consolas`-nya, dan mengubah setting `fontLigatures` menjadi `true`.
+
+```json
+  // Controls the font family.
+  "editor.fontFamily": "'Operator Mono', Consolas, 'Courier New', monospace",
+
+  // Configures font ligatures.
+  "editor.fontLigatures": true,
+```
+
+Selain itu kamu harus _download_ _theme_ [Dark+ Mono](https://marketplace.visualstudio.com/items?itemName=cmckni3.dark-plus-mono) untuk mengubah _style_-nya.
+
+Selesai _download_, kamu harus mengaktifkannya, masuk lagi ke `Preferences` > `Settings`, kemudian cari _setting_ dengan _keyword_ `workbench color theme`.
+
+Ubah `Color Theme` menjadi `Dark+ Mono`. Kemudian buka salah satu _file_ dalam _project_-mu.
+
+Nah beginilah tampilannya setelah kamu berhasil mengubah pengaturan _font_ dan _theme_.
+
+<img
+  src="https://ik.imagekit.io/2gfia2nrp/blog/menggunakan-font-operator-mono-di-vscode-github/example-operator-mono-vscode.png"
+  alt="Example Operator Mono VSCode"
+  title="Tampilan editor setelah menggunakan Operator Mono dan Dark+ Mono."
+/>
+
+Eits, gak cuma sampe di sini nih. Kamu juga bisa mengubah _default_ _font_ GitHub kamu.
+
+## Cara pasang Operator Mono di GitHub
+
+<img
+  src="https://ik.imagekit.io/2gfia2nrp/blog/menggunakan-font-operator-mono-di-vscode-github/gobyexample-methods.png"
+  alt="Go by Example: Methods"
+  title="Tampilan GitHub dengan font Operator Mono."
+/>
+
+Gimana caranya tuh?
+
+Asumsinya kamu pake _Chrome browser_, kamu tinggal pasang aja extension [Stylebot dari Chrome Web Store](https://chrome.google.com/webstore/detail/stylebot/oiaejidbmkiecgbjeifoejpgmdaleoha?hl=id). Trus masuk ke pengaturannya.
+
+<img
+  src="https://ik.imagekit.io/2gfia2nrp/blog/menggunakan-font-operator-mono-di-vscode-github/pengaturan-stylebot.png"
+  alt="Pengaturan stylebot"
+  title="Pengaturan **Stylebot**."
+/>
+
+Tambahkan style baru, klik `Add a new style...` kemudian isi formulirnya:
+
+Di bagian `Enter URL...` masukkan `*github.com*`
+
+Kemudian di bagian _textarea_-nya, isikan:
+
+```css
+.highlight .pl-c {
+  font-style: italic;
+}
+
+.markdown-body .highlight pre,
+table.highlight,
+.blob-code-inner {
+  font-family: "Operator Mono";
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5em;
+}
+```
+
+Kemudian tekan tombol `Save`. Langsung saja buka salah satu _file_ _codingan_ di `GitHub`-mu untuk melihat hasilnya.
+
+Happy coding ☺️

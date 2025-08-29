@@ -1,0 +1,221 @@
+---
+title: "Menggunakan Pointer di Golang dengan Mudah"
+date: "2018-10-12"
+publishedTime: "2018-10-12T08:00:00Z"
+modifiedTime: "2018-10-12T08:00:00Z"
+description: "Panduan praktis tentang penggunaan pointer di Golang, mencakup konsep dasar memory address, cara referencing dan dereferencing, method receiver dengan pointer, serta kapan sebaiknya menggunakan pointer vs value."
+tags:
+  [
+    "Golang",
+    "Pointer",
+    "Memory Management",
+    "Go Programming",
+    "Method Receiver",
+    "Struct",
+    "Programming Concepts",
+  ]
+status: "published"
+---
+
+Ketika kita bikin variabel, nilai dari variabel itu disimpen di memory (RAM). Di memory itu banyak banget kan yang disimpen tuh, nah makanya ada yang namanya "alamat" di memory itu (_memory address_), gak mungkin kita simpen semua variabel di aplikasi kita di satu alamat aja, karena tujuan kita bikin variabel itu kan beda beda, tipe datanya beda beda juga.
+
+Misal kita bikin variabel A tipenya **string** trus diisi suatu nilai, trus bikin lagi variable B tipenya **int** trus diisi suatu nilai juga. Pas kita baca isi variabel A, komputer bakal nyari alamat di mana isi variabel A itu disimpen. Pastinya alamat A dan B itu beda. Masa mau nyari Andi kok ke tempatnya Budi.
+
+Nah, **pointer** itu dipake buat nyimpen di mana alamat dari A atau B. Dengan pointer kita bisa tau di mana lokasi A dan B itu buat dapetin nilainya, bisa juga buat ngeset nilainya. Dulu sebelum kenal sama Golang, saya gak pernah mamakai bahasa pemrograman yang menggunakan pointer. Nah baru setelah saya mulai belajar Golang di tahun 2016, saya baru merasakan gimana sih pointer itu 😂.
+
+Ternyata ga terlalu ribet pake pointer.  
+Ga usah banyak basa basi, yuk kita bahas langsung aja.
+
+## Tipe pointer
+
+Misal nih ada tipe data **Type** yang mengandung sebuah nilai, tipe pointernya adalah **\*Type** (bintang **Type**).
+
+Kalo tipe **string** gitu misal, nilai kosong ya ""; kalo tipe **int** nilai kosongnya adalah 0 (nol); sedangkan pointer, nilai kosongnya adalah **nil**. Kalo pointer itu **nil**, dia ga nunjuk ke alamat memory.
+
+## Cara Akses
+
+Nah kalo pengen dapetin pointer, gini caranya:
+
+```go
+// bikin variabel tipe string
+handsome := "Saya ganteng"
+
+// dapetin pointernya
+pointerHandsome := &handsome
+```
+
+Nah itu variabel **handsome** tipenya adalah **string**, sedangkan variabel **pointerHandsome** tipenya adalah **\*string**.  
+Jadi dengan menggunakan tanda & kita bisa dapetin alamat memory dari sebuah nilai. Kayak gini istilahnya adalah **referencing**/**directing**.
+
+Sebaliknya, kalo mau membaca nilai lewat pointer, kita bisa gini:
+
+```go
+// baca nilai
+ganteng := *pointerHandsome
+```
+
+Variabel **ganteng** ini tipenya **string** dan isinya adalah **Saya ganteng**, bukan sebuah alamat memory.  
+Kayak gini istilahnya adalah **dereferencing**/**indirecting**.
+
+Kalau pengen mengubah **Saya ganteng** menjadi **Saya cantik**, ada 2 cara, yaitu:
+
+```go
+// set langsung
+handsome = "Saya cantik"
+
+// atau
+
+// set via pointer
+*pointerHandsome = "Saya cantik"
+```
+
+Gampang banget kan? Tinggal pembiasaan aja, lama-lama hapal sendiri karena udah terbiasa. Pepatah Jawa mengatakan: _Witing tresna jalaran saka kulina_.
+
+Nih contoh lengkapnya:
+
+```go
+package main
+
+import (
+	"fmt"
+)
+
+func main() {
+	// bikin variabel tipe string
+	handsome := "Saya ganteng"
+	fmt.Printf("isi dari variabel handsome = %s\n", handsome)
+
+	// dapetin pointernya
+	pointerHandsome := &handsome
+	fmt.Printf("pointer dari variabel handsome = %p\n", pointerHandsome)
+
+	// baca nilai
+	ganteng := *pointerHandsome
+	fmt.Printf("isi dari nilai pointer pointerHandsome = %s\n", ganteng)
+
+	// mengubah isi variabel
+	handsome = "Saya cantik"
+	fmt.Printf("isi dari variabel handsome = %s\n", handsome)
+
+	*pointerHandsome = "Saya ganteng"
+	fmt.Printf("isi dari variabel handsome = %s\n", handsome)
+}
+
+/*
+Output program:
+
+isi dari variabel handsome = Saya ganteng
+pointer dari variabel handsome = 0x40e128
+isi dari nilai pointer pointerHandsome = Saya ganteng
+isi dari variabel handsome = Saya cantik
+isi dari variabel handsome = Saya ganteng
+
+Program exited.
+*/
+```
+
+Bisa langsung dijalankan di sini: [https://play.golang.org/p/9ZaIvMcUUm9](https://play.golang.org/p/9ZaIvMcUUm9)
+
+## Kapan sebaiknya memakai Pointer, kapan sebaiknya memakai Value?
+
+Pakailah **pointer** ketika:
+
+- menggunakan variabel yang isinya besar sekali namun statis (gak diubah-ubah)
+- butuh membedakan nilai **nil** dan **tidak nil**
+- menggunakan suatu resource yang dibutuhkan agar aplikasi berjalan saat aplikasi start hingga stop (misal: koneksi ke database)
+- butuh mengubah langsung isi dari struct (nanti dijelaskan lagi di bawah)
+
+Pakailah **value** ketika:
+
+- melakukan operasi yang relatif murah (gak memakan banyak memory)
+- butuh _variabel / temporary variable_ yang dipakai di method local
+
+## Method Receiver
+
+Nah ini pembahasan yang lebih jauh tentang pointer.  
+Method receiver itu bentuknya kayak gini:
+
+```go
+func (t Type) Method() {
+	// method body
+}
+```
+
+Dengan cara ini kita bisa mendefinisikan method yang ada di type **Type**, dalam kasus ini kita sebut sebagai **Value Receiver**.
+
+Apa hubungannya dengan pointer? Kita bisa mendefinisikan **Pointer Receiver**.
+
+```go
+func (t *Type) Method() {
+	// method body
+}
+```
+
+Tentu saja ada persamaan dan perbedaannya dalam membuat method dengan receiver tersebut.
+
+Langsung aja ke contoh lengkapnya:
+
+```go
+package main
+
+import (
+	"fmt"
+)
+
+type Manusia struct {
+	Nama         string
+	JenisKelamin string
+}
+
+func (m Manusia) GantiKelamin(jenisKelaminBaru string) {
+	m.JenisKelamin = jenisKelaminBaru
+}
+
+func (m *Manusia) OperasiKelamin(jenisKelaminBaru string) {
+	m.JenisKelamin = jenisKelaminBaru
+}
+
+func main() {
+	andi := Manusia{"Andi", "Laki-Laki"}
+	fmt.Printf("Jenis kelamin asli %s adalah %s\n", andi.Nama, andi.JenisKelamin)
+
+	andi.OperasiKelamin("Perempuan")
+	fmt.Printf("Setelah OperasiKelamin, jenis kelamin %s adalah %s\n", andi.Nama, andi.JenisKelamin)
+
+	andi.GantiKelamin("Laki-laki")
+	fmt.Printf("Setelah GantiKelamin, jenis kelamin %s adalah %s\n", andi.Nama, andi.JenisKelamin)
+}
+
+/*
+Output program:
+
+Jenis kelamin asli Andi adalah Laki-Laki
+Setelah OperasiKelamin, jenis kelamin Andi adalah Perempuan
+Setelah GantiKelamin, jenis kelamin Andi adalah Perempuan
+
+Program exited.
+*/
+```
+
+Bisa langsung dijalankan di sini: [https://play.golang.org/p/piKgRskv-Bn](https://play.golang.org/p/piKgRskv-Bn)
+
+Nah keliatan kan bedanya? Ketika menggunakan Pointer Receiver, kita bisa langsung memodifikasi value-nya.
+
+## Kapan sebaliknya memakai Pointer Receiver, kapan sebaiknya memakai Value Receiver?
+
+Pakai **Pointer Receiver** bila:
+
+- mau mengubah langsung value dari method receiver.
+- **struct** yang kamu operasikan punya data yang besar sekali
+
+Pakai **Value Receiver** bila:
+
+- gak ada rencana untuk mengubah langsung value dari method receiver.
+
+**Tapi** (ada tapinya ini), kalo misal kamu punya banyak method receiver untuk satu **struct**, katakanlah ada 5, di mana salah satu method itu butuh **Pointer Receiver**, maka sebaiknya kamu ubah value receiver yang lain (buat _struct_ itu ya), menjadi **Pointer Receiver**. Tujuannya biar konsisten aja, gak campur-campur.
+
+## Kesimpulan
+
+Nah udah tau sekarang gimana cara pake pointer dan udah tau juga kapan pake pointer, kapan pake value.
+
+Met ngoding guys! 😁

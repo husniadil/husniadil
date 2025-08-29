@@ -1,0 +1,99 @@
+---
+title: "Interactive React Components in MDX"
+date: "2025-04-25"
+publishedTime: "2025-04-25T14:30:00Z"
+modifiedTime: "2025-04-25T16:45:00Z"
+description: "Comprehensive guide to implementing and using interactive React components with state management in MDX blog posts, featuring practical examples of counter components with code explanations and implementation benefits."
+tags:
+  [
+    "React",
+    "MDX",
+    "Client Components",
+    "State Management",
+    "Interactive UI",
+    "Shadcn UI",
+    "Web Development",
+    "JavaScript",
+  ]
+status: "archived"
+---
+
+One of the great features of MDX is the ability to include interactive React components directly in your markdown content. This allows you to create rich, interactive blog posts that demonstrate concepts in a way that static content cannot.
+
+## Basic Counter Component
+
+Here's a simple counter component that demonstrates React state:
+
+<Counter initialValue={5} step={2} />
+
+The counter above starts at 5 and increments by 2 each time you click the button.
+
+## Advanced Interactive Counter
+
+For a more advanced example, here's an interactive counter with customizable step size and multiple actions:
+
+<InteractiveCounter initialValue={10} />
+
+This component demonstrates:
+
+- React state management
+- User input handling
+- Multiple actions (increment, decrement, reset)
+- Styling with shadcn/ui components
+
+## How to Use These Components
+
+To use these components in your MDX files, simply include them as JSX tags:
+
+```jsx
+<>
+  <Counter initialValue={5} step={2} />
+
+  <InteractiveCounter initialValue={10} />
+</>
+```
+
+## How These Components Work
+
+These components are implemented as client components with the "use client" directive, which allows them to use React hooks like useState:
+
+```tsx
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { MDXProps } from "./types";
+
+export function Counter({
+  initialValue = 0,
+  step = 1,
+  ...props
+}: {
+  initialValue?: number;
+  step?: number;
+} & MDXProps) {
+  const [count, setCount] = useState(initialValue);
+
+  const increment = () => {
+    setCount((prev) => prev + step);
+  };
+
+  return (
+    <div className="my-4 flex items-center gap-4 rounded-md border p-4">
+      <div className="text-2xl font-bold">{count}</div>
+      <Button onClick={increment}>Increment by {step}</Button>
+    </div>
+  );
+}
+```
+
+## Benefits of Interactive Components
+
+Interactive components in MDX provide several benefits:
+
+1. **Better Learning Experience**: Readers can experiment with concepts directly in the blog post
+2. **Increased Engagement**: Interactive elements keep readers more engaged with your content
+3. **Clearer Demonstrations**: Some concepts are easier to understand when demonstrated interactively
+4. **Code Reusability**: Components can be reused across multiple blog posts
+
+Try clicking the buttons above to see how the state changes in real-time!
