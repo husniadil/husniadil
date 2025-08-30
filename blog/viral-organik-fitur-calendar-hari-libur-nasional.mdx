@@ -25,7 +25,8 @@ status: "published"
 Siapa yang menyangka kalau fitur calendar hari libur nasional yang saya kembangkan bakal viral organik di Google Search? Dalam seminggu terakhir, `/calendar/2026` mendadak trending dan membawa traffic signifikan ke website ini.
 
 Looking at the analytics, angkanya cukup wild:
-- **4.37K active users** (naik 162.85% dari minggu sebelumnya)  
+
+- **4.37K active users** (naik 162.85% dari minggu sebelumnya)
 - **34.9K event count** (naik 248.99%)
 - **5.1K visitors** dengan growth 133%
 - Peak traffic di tanggal 27 August mencapai hampir 1K users
@@ -51,8 +52,8 @@ const holidays = holidaysData[year!] || [];
 ---
 
 <Main title={`Kalender Libur Nasional Indonesia ${yearNum}`}>
-  <YearCalendar 
-    year={yearNum} 
+  <YearCalendar
+    year={yearNum}
     holidays={holidays}
     serverCurrentMonth={serverCurrentMonth}
   />
@@ -101,7 +102,7 @@ Yang bikin calendar ini viral adalah kombinasi beberapa SEO tactics yang apparen
 Instead of targeting generic "calendar" atau "hari libur", saya focus pada specific long-tail keywords:
 
 - "kalender libur nasional indonesia 2026"
-- "hari libur 2026 indonesia"  
+- "hari libur 2026 indonesia"
 - "tanggal merah 2026"
 - "cuti bersama 2026"
 
@@ -133,7 +134,7 @@ const structuredData = {
 Setiap calendar page tidak cuma showing dates, tapi juga include:
 
 - **Disclaimer untuk tahun mendatang** (explaining bahwa data masih prediksi)
-- **Dasar hukum** (mentioning SKB 3 Menteri)  
+- **Dasar hukum** (mentioning SKB 3 Menteri)
 - **Jenis-jenis hari libur** (nasional, keagamaan, cuti bersama)
 - **Year navigation** untuk easy browsing
 
@@ -202,8 +203,9 @@ Looking back, beberapa technical decisions ternyata contributing factors untuk v
 ### 1. **No External Dependencies untuk Holiday Data**
 
 Instead of rely on external holiday APIs (yang bisa down atau rate-limited), semua data stored locally. Ini ensure:
+
 - **Fast loading** (no external API calls)
-- **Reliable uptime** (no third-party dependencies)  
+- **Reliable uptime** (no third-party dependencies)
 - **Complete control** over data accuracy
 
 ### 2. **Future-proof Data Structure**
@@ -232,7 +234,7 @@ Dari data analytics yang interesting:
 ### User Behavior Patterns
 
 - **Peak usage** around planning periods (end of month, planning vacation)
-- **Mobile traffic** dominan (60%+ mobile users)  
+- **Mobile traffic** dominan (60%+ mobile users)
 - **Bounce rate** surprisingly low untuk calendar pages
 - **Session duration** above average (users actually engaging dengan content)
 
@@ -243,9 +245,10 @@ Dari data analytics yang interesting:
 - **Print functionality** actively used
 - **Share feature** popular untuk planning grup
 
-### Geographic Distribution  
+### Geographic Distribution
 
 Traffic primarily dari Indonesia (obviously), but also significant dari:
+
 - Malaysian users (similar holiday patterns)
 - Indonesian diaspora worldwide
 - Business travelers planning Indonesia trips
@@ -310,18 +313,19 @@ Balance between content depth dan loading speed:
 
 ```astro
 <!-- Lazy load non-critical content -->
-<HolidayDetails 
-  holiday={holiday} 
-  client:load 
+<HolidayDetails
+  holiday={holiday}
+  client:load
   data-holiday-index={index}
 />
 ```
 
 ## Kesimpulan: Sometimes Simple Wins
 
-Viral success dari calendar feature ini proves bahwa sometimes, solving real problems dengan technical excellence is the best marketing strategy. 
+Viral success dari calendar feature ini proves bahwa sometimes, solving real problems dengan technical excellence is the best marketing strategy.
 
 Key factors yang contribute ke success:
+
 - **Astro's performance benefits** untuk SEO ranking
 - **Comprehensive data structure** yang future-proof
 - **User-focused features** like print dan share
