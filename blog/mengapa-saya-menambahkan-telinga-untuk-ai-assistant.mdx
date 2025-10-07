@@ -1,0 +1,192 @@
+---
+title: "Mengapa Saya Menambahkan Telinga untuk AI Assistant"
+date: "2025-10-07"
+publishedTime: "2025-10-07T10:00:00Z"
+modifiedTime: "2025-10-07T10:00:00Z"
+description: "Cerita membangun cc-hooks karena bingung Claude Code lagi kerja atau hang. Dari sound effect sederhana sampai AI yang bisa ngomong pakai ElevenLabs."
+tags:
+  [
+    "Claude Code",
+    "Python",
+    "Audio Feedback",
+    "TTS",
+    "Developer Tools",
+    "ElevenLabs",
+    "CLI Enhancement",
+    "AI Assistant",
+  ]
+status: "published"
+---
+
+## Demo: Lihat cc-hooks in Action
+
+Sebelum cerita panjang lebar, tonton dulu gimana cc-hooks bekerja dengan premium ElevenLabs TTS:
+
+<YouTube id="VXkKhgeZ-xU" />
+
+## Problem yang Bikin Kesel
+
+Gini ceritanya. Saya lagi asik _coding_, Claude Code kerja di _background_. Tab browser kebuka banyak, dokumentasi di sebelah kiri, spotify nyala. Terus tiba-tiba saya kepikiran... eh tunggu, Claude masih _working_ apa udah _stuck_ nih?
+
+Gak ada _feedback_ sama sekali. Layar terminal diem aja. Gak tau dia lagi mikir, lagi baca file, atau emang udah _hang_. Saya harus bolak-balik tab buat ngecek, berkali-kali dalam sehari. _Annoying_ banget.
+
+_Sometimes_ Claude lagi _processing_ yang ribet—baca banyak file, analisa code, _generate solution_. Tapi dari sisi _user_? _Complete silence_. Gak ada tanda-tanda apapun.
+
+Nah di situ _"aha moment"_ muncul: **Kenapa AI assistant gue gak punya suara sih?** 🤔
+
+## Kenapa Audio Feedback Penting
+
+Manusia itu _natural_-nya pakai banyak _sense_. Kita _coding_ kebanyakan _rely on visual_ aja. Padahal _audio feedback_ itu punya kelebihan unik:
+
+**Bisa _aware_ tanpa ganggu _flow_**
+Saya tetap bisa kerja di IDE atau browser lain, gak perlu aktif _monitoring_ terminal. Bunyi "cetek" udah tau Claude selesai pakai _tool_. Bunyi "tek" berarti Claude mulai kerja lagi.
+
+**Ngurangin _context switching_**
+_Context switching_ itu _productivity killer_. Dengan audio, saya bisa _stay focused_ sambil telinga yang _monitoring_.
+
+**Bikin lebih personal**
+_Don't get me wrong_, kedengarannya _cheesy_, tapi pas AI assistant ada _voice_-nya _somehow_ jadi lebih... nyata gitu? Kayak _pair programming_ sama orang beneran yang ngasih tau "Gue lagi kerja nih" atau "Udah selesai, cek yuk."
+
+## Dari Sound Effect Sederhana
+
+Awalnya cc-hooks itu _simple_ banget. Claude Code punya _hooks system_ yang bisa _trigger command_ pas _event_ tertentu. Jadi tinggal bikin Python _script_ yang _play audio file_.
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [{
+      "type": "command",
+      "command": "uv run hooks.py --sound-effect=sound_effect_tek.mp3"
+    }]
+  }
+}
+```
+
+Python _script_-nya pun gampang, pake pygame buat _play sound_. _Done_. Tapi _immediately_ setelah dicoba: **_this changes everything._**
+
+Yang menarik adalah _sound design choices_. Saya pakai naming Indonesia: "tek", "cetek", "klek", "tung". _Somehow_ ini lebih _organic_ dan gak bikin berisik dibanding _typical system beeps_ 😄
+
+## Terus Dikasih Suara
+
+_Sound effects_ oke, tapi _sometimes_ butuh lebih banyak _context_. Claude lagi ngapain sih sebenernya? Makanya saya _integrate_ Text-to-Speech.
+
+Pilihan TTS _provider_ ada beberapa dengan _trade-offs_ masing-masing:
+
+**Google TTS (gTTS)**
+_Free_, _reliable_, _voice quality_ lumayan. Tapi butuh internet dan _customization_-nya terbatas.
+
+**ElevenLabs**
+_Voice quality_-nya **luar biasa bagus** (_seriously_, denger aja _demo video_ di atas). Bisa _customize voice_. Tapi bayar. _Worth it_ sih kalau dipake harian.
+
+**Prerecorded Audio**
+No API _calls_, super cepat, gratis. Tapi ya gitu, _limited vocabulary_ dan harus _manual recording_.
+
+_Solution_-nya? **Multi-provider fallback system** dengan _caching_. Jadi kalau ElevenLabs gagal, _fallback_ ke Google TTS, kalau itu juga gagal, _fallback_ ke _prerecorded_. _Smart_.
+
+Yang bikin _impressed_, dengan _caching system_ ini, _frequently used announcements_ kayak "Session started" atau "Task completed" langsung _playback_ tanpa API _calls_. _Instant_.
+
+## AI-Powered Contextual Messages
+
+Ini adalah _game changer_-nya. _Instead of_ _static announcements_ kayak "Tool use completed", _what if_ Claude Code bisa _generate messages_ yang _actually understand context_?
+
+Contoh _real-world_:
+
+- Static: "Tool use completed"
+- Contextual: "I've successfully created the authentication middleware you requested"
+
+Beda jauh kan? 😁
+
+_Implementation_-nya pakai OpenRouter buat akses LLMs. Saya pilih GPT-4o-mini karena _fast_ dan murah. _Each generation_ cuma ~$0.0001, _totally reasonable_ buat _daily usage_.
+
+## Tantangan yang Gak Disangka
+
+**Multi-Instance Support**
+Ternyata orang mau _run_ _multiple_ Claude Code _sessions_ sekaligus, masing-masing dengan _audio settings_ berbeda. Session A mungkin bahasa Indonesia, Session B English. Jadilah bikin _session-specific config_:
+
+```bash
+# Session 1: Indonesian with Google TTS
+cld --language=id --tts-providers=gtts,prerecorded
+
+# Session 2: English with ElevenLabs premium
+cld --language=en --elevenlabs-voice-id=21m00Tcm4TlvDq8ikWAM
+```
+
+**Latency Optimization**
+TTS _generation_ sama _playback_ bisa _introduce delay_ yang kerasa. _Original implementation sequential_: generate → cache → play. _Complained_ karena _delay_-nya _noticeable_.
+
+_Solution_-nya _async everything_. Jadi _audio generation_ jalan _parallel_ sama _logging_ dan _metrics_. _Perceived latency_ turun dari ~800ms ke ~200ms. _Big difference_.
+
+**Audio Conflicts**
+_Multiple hooks firing_ cepet-cepet bisa bikin _audio overlap_. _Imagine_ PreToolUse _fires_ "tek", terus langsung PostToolUse _fires_ "cetek" sebelum _sound_ pertama selesai. Berisik banget 😂
+
+Jadilah _implement audio queue system_ biar audio _plays_ satu-satu dengan _proper ordering_.
+
+## Hasilnya Surprisingly Good
+
+Yang awalnya cuma "_nice to have_" ternyata jadi _indispensable_ dalam _daily workflow_.
+
+**Developer Flow Improvement**
+_Subjectively_, produktivitas naik karena _reduced context switching_. _Hard to quantify_, tapi _feeling_-nya beda banget. Bisa _focus coding_ sambil Claude kerja di _background_.
+
+**Multi-tasking Capability**
+Sekarang saya _comfortable run_ 2-3 Claude Code _sessions_ sekaligus:
+
+- Session 1: _Debug production issue_ (_serious English voice_)
+- Session 2: _Explore library_ baru (_casual Indonesian voice_)
+- Session 3: Nulis dokumentasi (_silent_, _mostly reading_)
+
+## Technical Stack
+
+**Python 3.12+ dengan uv**
+Pilih Python karena _fast prototyping_ dan _rich audio ecosystem_. Plus `uv` bikin _dependency management painless_. _Script_-nya pakai PEP723 _inline dependencies_, jadi gak perlu pyproject.toml ribet-ribet.
+
+**Multi-Provider TTS Architecture**
+_Fallback system_ dengan _providers as plugins_. Gampang banget nambah _provider_ baru kalau mau.
+
+**Event-Driven Architecture**
+Claude Code _hooks_ _align perfectly_ dengan _event-driven design_:
+
+```
+SessionStart → 🔊 "Starting new session"
+PreToolUse → 🔊 "tek" (working indicator)
+PostToolUse → 🔊 "cetek" (completed indicator)
+Stop → 🔊 "Task completed: [contextual message]"
+```
+
+_Clean separation of concerns_, gampang di-_extend_.
+
+## Lessons Learned
+
+**Start Simple, Iterate**
+_Initial version_ cuma 100 _lines_ Python buat _play sound effects_. Gak usah _over-engineer_ dari awal. _Build_, pakai, _identify pain points_, _improve_.
+
+**Configuration Flexibility Matters**
+Setiap _developer_ beda preferensi. Ada yang mau _loud notifications_, ada yang _prefer subtle_. Ada yang mau AI _announcements_, ada yang cukup _sound effects_ aja. _Flexibility_ tanpa _overwhelming defaults_ adalah _sweet spot_.
+
+**Performance is Non-Negotiable**
+Untuk _developer tools_, _even_ 500ms _delay_ udah _annoying_. _Every optimization_—_caching_, _async operations_—_compounds_ jadi _significantly better UX_.
+
+**Documentation Drives Adoption**
+cc-hooks punya _tiered documentation_: _Quick Start_, _Intermediate_, _Advanced_. _Users_ bisa _productive_ dalam 2 menit, terus _progressively unlock features_. _Approach_ ini _dramatically increased adoption_.
+
+**Solve Your Own Problem First**
+Saya _build_ cc-hooks karena saya butuh. _That authenticity_ dan _deep understanding of use case_ _translated_ into _tool_ yang _actually useful_, bukan cuma _technically impressive_ tapi _impractical_.
+
+## Kesimpulan
+
+cc-hooks adalah _tool_ yang pas _working well_, _you barely notice it's there_. Tapi kalau tiba-tiba di-_disable_, _immediately you feel the absence_. _That's hallmark_ dari _good developer tools_.
+
+Yang paling _satisfying_ dari _building_ cc-hooks adalah melihat evolusi dari "_wouldn't it be cool if..._" jadi _daily essential tool_. _Not just for me_, tapi buat _developers globally_.
+
+_Key takeaways_:
+
+- _Multi-sensory feedback_ _improves_ _developer experience_
+- _Simple solutions_ untuk _real problems_ _beats_ _complex solutions_ untuk _imagined problems_
+- _Flexibility_ dan _performance_ are _non-negotiable_ untuk _dev tools_
+- _Open source_ _amplifies impact_ _beyond initial vision_
+
+Kalau pengen coba cc-hooks, _check it out_ di [github.com/husniadil/cc-hooks](https://github.com/husniadil/cc-hooks). _Quick Start_-nya _literally_ 2 menit, dan _I promise_ bakal _change how you interact_ dengan Claude Code.
+
+_Next time_ kamu _building developer tools_, _think beyond just visual interface_. Telinga kita itu _powerful sensors_ yang _severely underutilized_ dalam _developer workflows_. _Sometimes_, _adding "ears"_ to your _tools_ adalah _exactly what they need_ untuk jadi _truly great_.
+
+_Now if you'll excuse me_, saya perlu _get back to coding_. Claude Code _just played_ "tek" _sound_—_time to see what it's working on_ 😁
