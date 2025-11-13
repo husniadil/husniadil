@@ -1,0 +1,434 @@
+---
+title: "MCP Gateway: HTTP Gateway untuk Model Context Protocol"
+date: "2025-11-13"
+description: "Gimana caranya bikin MCP servers yang pakai transport berbeda (stdio, HTTP, SSE) bisa diakses via unified HTTP API dengan authentication layer. Deep dive ke architecture, design patterns, dan production considerations."
+tags: ["python", "fastapi", "mcp", "oauth", "gateway", "architecture"]
+status: "published"
+image: "https://ik.imagekit.io/2gfia2nrp/blog/mcp-gateway-http-gateway-untuk-model-context-protocol/mcp-gateway-og-image.png?updatedAt=1763035064586"
+imageAlt: "MCP Gateway Architecture Diagram"
+---
+
+Gini ceritanya. Akhir-akhir ini saya lagi asik eksperimen sama Model Context Protocol (MCP) dari Anthropic. Protocol ini keren banget buat bikin AI agents yang bisa ngakses berbagai _context sources_ - mulai dari file system, database, API, sampe _real-time data streams_. Saya udah install beberapa MCP servers di laptop, dan seamlessly bisa dipake dari Claude Desktop.
+
+Tapi terus muncul problem: **Saya pengen pakai MCP dari Claude mobile juga**.
+
+The thing is, kebanyakan MCP servers itu pakai **stdio transport** - jalan sebagai subprocess lokal dengan komunikasi via stdin/stdout. Claude Desktop bisa handle ini dengan gampang karena dia bisa spawn subprocess. Tapi Claude mobile? **Ga support stdio**. Dan itu masuk akal - secara architecture, mobile app ga feasible untuk manage subprocess yang running di device user.
+
+Awalnya saya mikir, "Ya udah, pakai di desktop aja". Tapi _use case_ saya sering banget butuh akses MCP pas lagi mobile - checking production logs, querying databases, accessing internal tools - semua dari HP. Nunggu sampe di depan laptop itu ga praktis.
+
+Nah, dari situlah _'aha moment'_ muncul: **Kenapa ga bikin HTTP gateway aja?**
+
+Gateway ini basically jadi proxy - dia spawn dan manage MCP servers di server-side (bisa home server, VPS, cloud), terus expose via standard HTTP API. Claude mobile tinggal hit HTTP endpoint, dan boom - semua MCP servers yang tadinya cuma bisa dipake di desktop, sekarang accessible dari mana aja.
+
+Tapi kalo cuma forward requests doang, terlalu simpel. Gateway ini perlu:
+
+1. **Multi-transport support** - Ga cuma stdio, tapi juga HTTP dan SSE backends
+2. **Authentication layer** - MCP servers mostly ga punya built-in auth. Gateway harus enforce OAuth 2.1 dengan proper access control
+3. **Session isolation** - Per-user sessions yang proper, ga bisa saling access
+4. **Auto-recovery** - Kalo gateway restart, sessions bisa auto-recreate
+5. **Production-ready** - Rate limiting, PII redaction, health checks, structured logging
+
+Dari personal need jadi full-fledged gateway solution. Let me walk you through gimana gateway ini di-design dan diimplementasikan.
+
+## Problem yang Dipecahkan
+
+Sebelum masuk ke technical details, mari kita lihat dulu problem space-nya.
+
+### Transport Heterogeneity
+
+MCP servers bisa running dengan transport layer yang berbeda:
+
+- **Stdio**: Server jalan sebagai subprocess, komunikasi via stdin/stdout
+- **HTTP**: Server expose HTTP endpoint dengan streaming support
+- **SSE**: Server push responses via Server-Sent Events
+
+Bayangin kalo kamu punya 5 MCP servers dengan transport berbeda-beda. Setiap client harus implement logic untuk handle semua transport types. **Ribet banget kan?**
+
+### Authentication Gap
+
+Banyak MCP servers yang fokus ke functionality, tapi ga punya built-in authentication. Di development environment mungkin ga masalah, tapi kalo mau deploy ke production? **Big security hole**.
+
+### Session Management Complexity
+
+Setiap user harus punya session isolation yang proper. Kalo user A punya session ke MCP server X, user B ga boleh bisa akses session itu. Plus, gimana handle session lifecycle - creation, timeout, cleanup, auto-recovery kalo gateway restart?
+
+## MCP di Claude Mobile: Finally Works!
+
+Setelah gateway ini jalan, _use case_ awal saya tercapai - MCP servers bisa dipake dari Claude mobile. Ini game changer banget buat _daily workflow_ saya.
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 my-8">
+  <img src="https://ik.imagekit.io/2gfia2nrp/blog/mcp-gateway-http-gateway-untuk-model-context-protocol/BEFC38CE-ECFA-46AC-9E2C-83DB1D3ADA43_1_102_o.jpeg?updatedAt=1763026126053" alt="Claude mobile screenshot 4" class="rounded-lg shadow-md" />
+  <img src="https://ik.imagekit.io/2gfia2nrp/blog/mcp-gateway-http-gateway-untuk-model-context-protocol/EF8ED6C4-1941-4480-A28D-D83F03B75D44_1_102_o.jpeg?updatedAt=1763026133122" alt="Claude mobile screenshot 4" class="rounded-lg shadow-md" />
+  <img src="https://ik.imagekit.io/2gfia2nrp/blog/mcp-gateway-http-gateway-untuk-model-context-protocol/2EDEC7F9-539B-4C06-814D-E1993CD83C70_1_201_a.jpeg?updatedAt=1763026245673" alt="Claude mobile screenshot 4" class="rounded-lg shadow-md" />
+  <img src="https://ik.imagekit.io/2gfia2nrp/blog/mcp-gateway-http-gateway-untuk-model-context-protocol/B9B57448-97E7-4AFC-BB1A-7F41450E3E0A.png?updatedAt=1763025636815" alt="Claude mobile screenshot 1" class="rounded-lg shadow-md" />
+  <img src="https://ik.imagekit.io/2gfia2nrp/blog/mcp-gateway-http-gateway-untuk-model-context-protocol/9F9B7C5D-8C7D-48E7-A172-30512A163637.png?updatedAt=1763025606363" alt="Claude mobile screenshot 3" class="rounded-lg shadow-md" />
+  <img src="https://ik.imagekit.io/2gfia2nrp/blog/mcp-gateway-http-gateway-untuk-model-context-protocol/5E4C8702-4FAB-44F6-906C-DDEF5684EF8D.png?updatedAt=1763025620472" alt="Claude mobile screenshot 2" class="rounded-lg shadow-md" />
+  <img src="https://ik.imagekit.io/2gfia2nrp/blog/mcp-gateway-http-gateway-untuk-model-context-protocol/92C59376-4544-477D-8946-863F03D69A4A.png?updatedAt=1763025559991" alt="Claude mobile screenshot 2" class="rounded-lg shadow-md" />
+  <img src="https://ik.imagekit.io/2gfia2nrp/blog/mcp-gateway-http-gateway-untuk-model-context-protocol/2218DB6A-F99D-462E-9DEE-408D3F6A0C8E.png?updatedAt=1763025537466" alt="Claude mobile screenshot 6" class="rounded-lg shadow-md" />
+  <img src="https://ik.imagekit.io/2gfia2nrp/blog/mcp-gateway-http-gateway-untuk-model-context-protocol/21E33785-7863-4B5B-B353-5A56E4C5624B_1_102_o.jpeg?updatedAt=1763025537434" alt="Claude mobile screenshot 5" class="rounded-lg shadow-md" />
+</div>
+
+_Screenshots Claude mobile app mengakses berbagai MCP servers via HTTP gateway_
+
+Di screenshots itu, Claude mobile lagi interact dengan MCP servers yang running di home server saya. Yang awalnya cuma bisa dipake di Claude Desktop (stdio transport), sekarang accessible dari HP dengan seamless experience yang sama.
+
+**Real-world impact**:
+
+- ✅ Query production databases pas lagi commute
+- ✅ Check server logs tanpa buka laptop
+- ✅ Access internal tools dari mana aja
+- ✅ Tetap secure dengan OAuth authentication
+
+Gateway transparently handle semua complexity - session management, transport translation, authentication - dan Claude mobile cuma perlu tau endpoint URL. That's it.
+
+## Solution: Layered Architecture
+
+MCP Gateway solve semua masalah di atas dengan architecture yang clean dan modular.
+
+### Layer 1: HTTP API dengan FastAPI
+
+Top layer adalah standard HTTP API built dengan FastAPI. Semua clients cukup ngomong HTTP - ga perlu tau underlying transport apa yang dipakai MCP server.
+
+```python
+# Simple HTTP request dengan Bearer token
+POST /mcp/my-server
+Authorization: Bearer <jwt_token>
+Mcp-Session-Id: <optional_session_id>
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/list",
+  "params": {}
+}
+```
+
+Authentication di-handle via **JWT atau opaque tokens**. Gateway validate token, extract user info, terus enforce access control via whitelist. Simpel dari sisi client.
+
+### Layer 2: Service Orchestration
+
+Di layer ini ada dua service utama:
+
+**SessionService**: Manages session lifecycle dengan ownership validation. Kalo client request dengan session ID, service ini yang validate apakah session itu punya user yang bersangkutan. Ada juga auto-recovery mechanism - kalo gateway restart dan client masih pegang session ID, service akan transparently recreate session.
+
+**JWTVerifier**: Handles token validation dengan dual support - JWT verified locally pakai JWKS, opaque tokens validated via API call (Clerk compatible). Ada intelligent caching dengan different TTLs: JWKS keys cached 1 jam, individual tokens cached 1 menit.
+
+### Layer 3: Backend Abstraction
+
+Ini bagian yang paling menarik. Gateway punya 3 backend implementations:
+
+#### StdioBackend: Subprocess Management
+
+Untuk MCP servers yang jalan sebagai local process (misalnya `npx @modelcontextprotocol/server-filesystem`).
+
+**Key challenge**: Single subprocess shared by concurrent requests from multiple users. Gimana prevent ID collision?
+
+**Solution**: ID remapping. Client kirim request dengan ID mereka sendiri, gateway remap ke internal ID, kirim ke subprocess, tunggu response, terus map back.
+
+```python
+# Client request ID = 42
+# Gateway internal ID = 1001
+# Store mapping: internal_id -> (client_id, future)
+self._pending_requests[1001] = (42, future)
+
+# Send to subprocess dengan internal ID
+request["id"] = 1001
+self.process.stdin.write(json.dumps(request) + "\n")
+
+# Background task reads stdout
+response = json.loads(line)
+client_id, future = self._pending_requests.pop(response["id"])
+response["id"] = client_id  # Map back
+future.set_result(response)
+```
+
+Ada juga aggressive stderr draining untuk prevent buffer saturation, plus force `PYTHONUNBUFFERED=1` buat avoid Python buffering issues.
+
+#### HTTPBackend: Direct Passthrough
+
+Untuk remote MCP servers yang expose HTTP endpoint.
+
+**Key advantage**: Ga butuh ID remapping karena each HTTP request is independent. Gateway cukup forward request, handle streaming response (bisa JSON atau SSE-streamed), capture session ID dari response headers.
+
+```python
+async with self.client.stream("POST", url, json=request) as response:
+    # Capture remote session ID
+    if "Mcp-Session-Id" in response.headers:
+        self.remote_session_id = response.headers["Mcp-Session-Id"]
+
+    # Handle streaming response
+    if content_type == "text/event-stream":
+        async for line in response.aiter_lines():
+            # Parse SSE format
+            if line.startswith("data: "):
+                yield json.loads(line[6:])
+```
+
+#### SSEBackend: Dual Channel Communication
+
+Untuk servers yang pake Server-Sent Events pattern.
+
+**Unique characteristic**: Dual channel - SSE stream untuk responses, HTTP POST untuk requests. Gateway harus maintain connection ke SSE endpoint untuk receive responses, sambil POST requests ke announced endpoint.
+
+```python
+# Background task reads SSE stream
+async for event in self.sse_client:
+    if event.event == "endpoint":
+        # Server announces POST endpoint
+        self.post_url = json.loads(event.data)["url"]
+    elif event.event == "message":
+        # Match response dengan pending request
+        response = json.loads(event.data)
+        future = self._pending_requests.pop(response["id"])
+        future.set_result(response)
+```
+
+Timeout-based cleanup untuk prevent resource leaks kalo requests ga dapet response.
+
+## Design Patterns yang Dipake
+
+### Three-Tier Exception Hierarchy
+
+Salah satu design decision yang saya paling suka adalah exception hierarchy yang clean:
+
+1. **Domain layer** (`models/exceptions.py`): Pure business logic exceptions
+2. **Backend layer** (`backends/exceptions.py`): Transport-level exceptions
+3. **API layer** (`api/exceptions.py`): HTTP-aware exceptions dengan status codes
+
+Ini bikin error handling jadi predictable dan testable. Kalo ada `SessionNotFoundError` di domain layer, API layer translate jadi 404. Kalo ada `BackendConnectionError`, client dapet 502 Bad Gateway.
+
+### Factory Pattern untuk Backend Creation
+
+```python
+class BackendFactory:
+    @staticmethod
+    def create_backend(config: ServerConfig) -> Backend:
+        if config.transport == "stdio":
+            return StdioBackend(config)
+        elif config.transport == "http":
+            return HTTPBackend(config)
+        elif config.transport == "sse":
+            return SSEBackend(config)
+```
+
+Clean separation antara backend creation logic dan usage.
+
+### Wrapper Pattern untuk Auto-Reconnect
+
+`SessionWrapper` wraps Session + Backend dengan auto-reconnect logic. Kalo backend connection tiba-tiba terminated (subprocess crash, network error), wrapper transparently restart backend dan re-initialize session.
+
+## Production-Ready Features
+
+### Rate Limiting
+
+Pakai sliding window algorithm dengan in-memory storage. Configurable per endpoint atau global.
+
+```python
+# Di middleware stack
+rate_limit_middleware = RateLimitMiddleware(
+    requests_per_minute=100,
+    burst_size=20
+)
+```
+
+### PII Redaction
+
+Structured logging dengan automatic PII redaction. Token values, sensitive headers, semua di-redact sebelum masuk log.
+
+```python
+# Output di log
+"Authorization": "Bearer ***REDACTED***"
+"Clerk-Secret-Key": "***REDACTED***"
+```
+
+### Health Checks
+
+Rich health endpoint buat infrastructure integration:
+
+```json
+{
+  "status": "healthy",
+  "uptime": 3600.5,
+  "cpu": {
+    "percent": 15.2,
+    "per_core": [12.5, 17.8, 14.1, 16.3]
+  },
+  "memory": {
+    "used_mb": 245.3,
+    "available_mb": 8192.0,
+    "percent": 2.99
+  },
+  "oauth": {
+    "enabled": true,
+    "jwks_loaded": true
+  }
+}
+```
+
+### Container Detection
+
+Gateway bisa detect kalo jalan di container dan report container memory limits. Useful buat Kubernetes deployments dengan resource quotas.
+
+## Security Considerations
+
+### Token Validation Trade-offs
+
+Gateway support dual token types dengan trade-offs yang jelas:
+
+- **JWT**: Fast (local verification), but _audience_ (`aud`) validation disabled untuk Clerk compatibility
+- **Opaque**: Flexible, tapi butuh API call ke userinfo endpoint
+
+Revoked tokens tetap valid sampe cache expires (max 10 minutes). Kalo butuh immediate revocation, perlu external cache invalidation mechanism.
+
+### Whitelist Enforcement
+
+Access control via whitelist patterns:
+
+```env
+ALLOWED_USERS=github:username,google:*@company.com,email:specific@email.com
+```
+
+Support GitHub usernames, Google workspace domains, atau specific email addresses.
+
+## Session Auto-Recovery
+
+Ini salah satu feature yang paling helpful. Kalo gateway restart (deployment, crash recovery), existing sessions akan hilang dari memory. Normally, clients harus re-initialize semua sessions.
+
+Tapi dengan `get_or_create_session()`:
+
+```python
+# Client sends request dengan old session ID
+session = await session_service.get_or_create_session(
+    session_id=old_session_id,
+    server_config=config,
+    user_id=user_id
+)
+# Kalo session ga exist, transparently create new one dengan default params
+```
+
+Zero-downtime dari client perspective. Trade-off: Lost initialization state (gateway pake default params buat re-initialize).
+
+## Testing Strategy
+
+Project ini punya ~14k lines of tests dengan comprehensive coverage:
+
+- **Unit tests**: Every backend, service, dan middleware component
+- **Integration tests**: End-to-end flows dengan real subprocesses
+- **Async tests**: Proper handling of concurrent requests dan background tasks
+- **Error injection**: Test error paths dan recovery mechanisms
+
+Pakai pytest dengan async support:
+
+```bash
+task test-cov  # Run tests dengan coverage report
+```
+
+Type safety di-enforce dengan mypy strict mode - `disallow_untyped_defs=true` untuk catch type errors di development time.
+
+## Deployment
+
+### Docker Compose Stack
+
+Gateway include complete Docker Compose setup dengan:
+
+- Multi-stage builds buat optimized images
+- Non-root user (security best practice)
+- Health checks dengan dynamic PORT detection
+- Auto-restart policies
+- Network isolation
+
+```bash
+./scripts/deploy.sh  # One-command deployment
+```
+
+### Environment Configuration
+
+Production secrets managed via environment variables:
+
+```bash
+# OAuth config
+OAUTH_ENABLED=true
+CLERK_DOMAIN=your-app.clerk.accounts.dev
+CLERK_SECRET_KEY=sk_live_xxxxx
+
+# Access control
+ALLOWED_USERS=github:username,google:*@company.com
+
+# Server configs
+MCP_SERVERS_CONFIG=/path/to/.mcp.json
+```
+
+Support `$VAR_NAME` syntax di server configs untuk reference environment variables (useful buat secrets).
+
+## Lessons Learned
+
+### 1. Async Everything
+
+FastAPI + httpx + asyncio = smooth async flow. Tapi harus careful dengan blocking operations. Subprocess stdin/stdout operations wrapped dengan proper async handling:
+
+```python
+# BAD: Blocking read
+line = self.process.stdout.readline()
+
+# GOOD: Async background task
+asyncio.create_task(self._read_stdout_loop())
+```
+
+### 2. Background Task Management
+
+Banyak background tasks running concurrently - session cleanup, SSE stream reading, stderr draining. Proper lifecycle management penting banget:
+
+```python
+# Track tasks untuk graceful shutdown
+self._tasks: set[asyncio.Task] = set()
+
+# Create task dengan cleanup
+task = asyncio.create_task(coro)
+self._tasks.add(task)
+task.add_done_callback(self._tasks.discard)
+```
+
+### 3. Error Context Preservation
+
+Exception hierarchy harus preserve context. Kalo backend error, jangan cuma throw generic "connection failed" - include backend type, server name, original error:
+
+```python
+raise BackendConnectionError(
+    f"Failed to connect to {self.transport} backend "
+    f"'{self.server_name}': {original_error}"
+) from original_error
+```
+
+### 4. Testing Subprocess Behavior
+
+Testing stdio backend tricky karena subprocess behavior unpredictable (buffering, timing issues). Solution: Mock subprocess interface, inject delays untuk simulate real-world conditions, test cleanup paths explicitly.
+
+## Future Improvements
+
+Beberapa area yang bisa di-improve:
+
+1. **Distributed Sessions**: Currently sessions stored in-memory. Untuk multi-instance deployments, perlu Redis atau distributed cache.
+
+2. **Metrics & Observability**: Add Prometheus metrics untuk request latency, error rates, session counts.
+
+3. **Dynamic Server Registration**: Currently servers configured at startup. Bisa add API untuk dynamic server registration/removal.
+
+4. **WebSocket Support**: Selain HTTP polling, support WebSocket untuk real-time bidirectional communication.
+
+5. **Circuit Breaker**: Add circuit breaker pattern untuk backend connections - kalo backend consistently failing, stop sending requests temporarily.
+
+## Takeaways
+
+Building MCP Gateway taught me a lot tentang production system design:
+
+- **Layered architecture** makes complexity manageable
+- **Type safety** catches bugs early - worth the strictness
+- **Auto-recovery mechanisms** improve user experience significantly
+- **Comprehensive testing** enables confident refactoring
+- **Production features** (logging, metrics, health checks) aren't optional - they're essential
+
+Project ini masih actively developed di repo private, tapi hopefully sharing architecture dan design decisions-nya bisa helpful buat yang building similar gateway systems atau working dengan heterogeneous protocols.
+
+Kalo kamu punya questions atau suggestions, feel free to reach out!
+
+Selamat bereksperimen dengan protocol gateways 🚀
