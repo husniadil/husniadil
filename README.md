@@ -10,7 +10,7 @@ _Building secure, scalable distributed systems_
 
 ## 👋 About Me
 
-15+ years of experience building mission-critical systems across e-commerce and logistics. **Claude Code power user** leveraging AI-assisted development for rapid prototyping and enhanced productivity. Active contributor to the Claude Code ecosystem with open-source tools and plugins.
+16+ years of experience building mission-critical systems across e-commerce and logistics. **Claude Code power user** leveraging AI-assisted development for rapid prototyping and enhanced productivity. Active contributor to the Claude Code ecosystem with open-source tools and plugins.
 
 ## 📝 Recent Blog Posts
 
