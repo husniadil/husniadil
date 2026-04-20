@@ -1,0 +1,576 @@
+---
+title: "Kenapa Saya Memilih DESIGN.md daripada Claude Design (at least for now)"
+date: "2026-04-20"
+publishedTime: "2026-04-20T10:00:00Z"
+modifiedTime: "2026-04-20T10:00:00Z"
+description: "Cerita refactor design system blog pribadi: kenapa saya coba Claude Design lalu balik ke markdown via DESIGN.md, membangun Warm Editorial dengan Claude Code di terminal, dan pelajaran dari rescission pattern, dep migration Astro 6 + ESLint 10 + TypeScript 6, sampai SSR hook bug."
+tags:
+  [
+    "Design System",
+    "Claude",
+    "Claude Code",
+    "Astro",
+    "TypeScript",
+    "Tailwind CSS",
+    "AI-Assisted Development",
+    "Refactoring",
+    "Warm Editorial",
+    "DESIGN.md",
+  ]
+status: "published"
+---
+
+## Minggu Lalu: Claude Design Launch
+
+17 April 2026, [Anthropic Labs launch Claude Design](https://www.anthropic.com/news/claude-design-anthropic-labs). Powered by Claude Opus 4.7, available buat Pro/Max/Team/Enterprise sebagai **research preview**. Marketing-nya menarik: _"describe what you need and Claude builds a first version"_. Prototipe, mockup, pitch deck, landing page — semua via conversational design canvas.
+
+Kebetulan saya lagi di tengah refactor design system blog ini. Timing-nya pas banget. Saya thought: _why not try?_
+
+Spoiler: saya coba sebentar, terus balik ke markdown + Claude Code di terminal. Tulisan ini tentang kenapa saya pilih DESIGN.md daripada Claude Design — **at least for now**.
+
+## Coba Claude Design Dulu
+
+Bukan maksud review tool — cuma report observasi dari solo engineer yang kerja di codebase existing.
+
+Onboarding Claude Design ceritanya: scan codebase atau design file, build design system otomatis dari situ, terus setiap project pakai system itu konsisten. Conversational iteration, inline comment, adjustment knob, export ke PPTX/PDF/Canva, handoff bundle ke Claude Code.
+
+Saya test minimal:
+
+- Upload codebase reference
+- Prompt: "redesign blog homepage dengan editorial warm vibe"
+- Result: visual mockup rapi, beberapa iteration cepet, hasil shareable URL
+
+Observasi jujur:
+
+- **Visual output-nya impressive**. Layout, spacing, color choice — Claude Opus 4.7 cukup tasteful out-of-the-box.
+- **Conversational refinement smooth**. "Geser margin kiri", "ganti serif-nya", "tambah spacing di hero" — semua respons langsung applied.
+- **Handoff bundle ke Claude Code** keliatan rapi — code package siap di-patch.
+
+Secara tool, Claude Design legit. Masalahnya bukan tool quality. Masalahnya **fit to my context**.
+
+## Realita Praktis: Preview + Limit Terpisah + Solo
+
+Tiga hal yang bikin saya pause:
+
+**1. Research preview status.** Tool masih early — explicitly flagged "research preview" di [announcement-nya](https://www.anthropic.com/news/claude-design-anthropic-labs). Fitur bisa berubah, UI bisa di-rombak, workflow bisa shift 2-3 bulan lagi. Kalau saya invest design artifact deep ke sini dan tool pivot, saya bakal re-invest effort.
+
+**2. Quota/limit terpisah.** Claude Design pakai subscription limit yang dipisah dari Claude Code (meskipun masih di bawah plan yang sama). Saya udah invest effort + quota di terminal workflow — Claude Code di VSCode, memory cross-session, skill-based workflow, subagent-driven dev. Nambah Claude Design = quota fragmentation + extra mental model + extra tool-switching.
+
+**3. Audience fit — team-oriented.** Marketing-nya eksplisit: _"organization-scoped sharing, inline comments, group conversation"_, _"designers collaborating with PMs and marketers"_. Strengths-nya memang di collab. Saya solo dev — saya ga butuh comment thread di canvas atau share edit access ke colleague.
+
+Ketiga ini compound. Kalau cuma preview tapi saya solo team yang siap invest effort, OK. Kalau cuma quota split tapi workflow-nya klop, OK. Tapi tiga sekaligus = marginal value-nya tipis.
+
+Bukan verdict permanen. Tool-nya akan matang (keluar dari preview), limit structure bisa berubah (kemungkinan bundled), dan suatu saat saya akan re-evaluate. Tapi **saat ini**, bukan fit.
+
+## Landing di DESIGN.md
+
+OK, balik ke terminal. Cari alternatif.
+
+Beberapa hari kemudian, browsing Twitter, lihat thread soal [getdesign.md](https://getdesign.md/) — _"awesome DESIGN.md collection for AI coding agents"_. Kurator-nya ngumpulin 69+ DESIGN.md dari brand populer (WIRED, Mastercard, IBM, The Verge, Apple, Vercel, Spotify, dll), curated buat jadi drop-in reference. Premise-nya simple:
+
+> Drop one into your project and let coding agents build matching UI.
+
+Saya klik. Setiap file markdown describe visual system brand: font, palette, layout rhythm, component style — semua plain text structured. Bukan Figma export, bukan Storybook link. Plain markdown.
+
+First reaction: **"oh ini speak my language."**
+
+Kenapa klik banget sebagai engineer?
+
+- **Plain text** → diff-able, git-versioned, reviewable via PR
+- **Describes principles, bukan pixels** → portable antar tool, tetap valid kalau framework ganti
+- **Agent-readable** → Claude di terminal bisa baca langsung, no extra tooling
+- **Standalone artifact** → hidup di repo, bukan di vendor tool account
+- **Transparent iteration** → history via git log, reviewer bisa pull request
+
+Bandingin dengan Claude Design: visual canvas, vendor-hosted, edit history di canvas. Beda abstraction layer — bukan inferior, beda paradigm.
+
+Saya solo dev yang kerja di terminal. Terminal + markdown + git + Claude Code adalah mental model saya. DESIGN.md klop. Claude Design — ga klop _untuk konteks ini_.
+
+## Membangun DESIGN.md Sendiri
+
+getdesign.md ga langsung saya copy. Saya browse 30 menit, pilih pattern yang resonate:
+
+- **WIRED**: broadsheet serif density, custom serif display, mono kicker, ink-blue links
+- **The Verge**: editorial mag feel, tiled story grid
+- **IBM**: rigid engineering + Plex Sans baseline
+
+Dari tiga referensi ini, saya extract pola (bukan copy aesthetic):
+
+- Editorial serif untuk display moment
+- Mono font untuk engineering chrome (kicker, meta, code)
+- Warm tone daripada cool
+- Reading-first layout (~720px column, bukan `max-w-4xl` yang kelebaran)
+
+Terus saya buka file baru: `docs/design/DESIGN.md`. Brainstorm sama Claude Code pakai skill `superpowers:brainstorming` — clarifying question satu-satu, 2-3 approach per topic, pilih satu per section.
+
+Hasilnya: **Warm Editorial** design system. Filosofi satu kalimat:
+
+> A literary workshop reimagined as tech blog — calligraphic brand identity meets engineering precision.
+
+DESIGN.md-nya grow to ~1500 baris. Sections:
+
+1. Visual theme & atmosphere
+2. Key characteristics (10 bullet)
+3. Color palette (canvas, surface, text, accent, border, semantic)
+4. Typography (three-voice)
+5. Spacing & layout (including §5.6 editorial bands)
+6. Component specs
+7. Page patterns
+8. Theme sync (dynamic theme-color)
+9. Interactions & motion
+10. Design principles
+11. Token definitions & migration notes
+
+Setiap section jelasin _why_ (philosophy, constraint, trade-off) dan _how_ (token value, technique). Plain text. Agent readable. Git versioned.
+
+## Akar Palet: Claude sebagai Anchor, Bukan Template
+
+Ada satu akar lagi yang layak saya akui — dan ini agak meta.
+
+Selain WIRED/Verge/IBM, palet Warm Editorial punya _anchor_ di vocab visual Claude sendiri. Claude brand (chat UI, marketing, Anthropic site) punya signature aesthetic khas: warm off-white canvas kayak paper, terracotta/copper accent, serif display + sans body + mono chrome. Kalau kamu pernah spend time di claude.ai, mood itu familiar.
+
+Honest credit: saya ga ignore fact itu. Saya kerja sama Claude setiap hari, dan visual vocab-nya embedded di mental model waktu brainstorm palet sendiri.
+
+Tapi **bukan copy-paste**. Ada tiga adjustment sadar yang bikin Warm Editorial berbeda — sebagian forced (constraint), sebagian judgment.
+
+### 1. Canvas locked — forced differentiator
+
+Claude brand pakai warm off-white canvas (paper-like, slightly yellowed cream). Saya mau pakai vibe itu juga. Tapi saya ga bisa.
+
+Alasannya constraint, bukan preference: **favicon canvas-nya solid `#ffffff` dan `#09090b`**, bukan transparent. Ini udah existing asset set (20+ icon file across `.ico`, `apple-touch-icon`, `android-chrome`, light/dark variant). Re-export semua buat match warm canvas = effort yang ga proporsional dengan benefit.
+
+Jadi canvas saya clean-lock ke `#ffffff` / `#09090b`. Warmth harus lahir di **surface layer**, bukan canvas: parchment `#fbfaf4` (light) / `#141413` (dark) untuk kartu, panel, code block.
+
+Mood-nya beda dari Claude: **clean canvas + warm parchment layered on top**. Mirip tata letak koran — kertas base satu warna, artikel cetak di atas punya tone sendiri. Bukan inferior vibe, beda approach.
+
+### 2. Terracotta mode-shifted — accent dengan behavior berbeda
+
+Claude accent di kepala saya: satu terracotta/copper value, dipakai konsisten cross-mode.
+
+Mine: **mode-shifted**. `#c96442` (terracotta) di light, `#e8a567` (amber) di dark. Bukan satu hex yang sama cross-mode.
+
+Alasannya WCAG compliance. Terracotta `#c96442` di atas canvas `#09090b` dark, contrast ratio-nya rendah — accent tenggelam, link susah dibaca. Shift ke amber `#e8a567` bikin contrast naik ke 8.2:1 (AA–AAA boundary) sambil tetap di warm family. Di light mode, terracotta di atas `#ffffff` aman di 4.8:1 (AA).
+
+Adjustment ini subtle tapi material: accent identity saya _bergerak_ antar mode, while staying related. Simpler approach (single hex) akan stagnate salah satu mode di contrast tipis.
+
+### 3. Shadow-as-border — technique untuk constraint spesifik
+
+Claude web UI (observasi dari claude.ai): kartu dan panel pakai conventional CSS `border: 1px solid`. Standard pattern.
+
+Mine: `box-shadow: 0 0 0 1px` shadow-ring. Alasan spesifik — **2% contrast problem** antara canvas `#ffffff` dan parchment `#fbfaf4`. CSS border jadi nyaris invisible; kalau dipekat-in, kartu terasa harsh di dark mode.
+
+Shadow-ring solve ini: warna apapun (termasuk near-invisible), ga ganggu box model, stackable untuk focus state — `0 0 0 1px var(--border), 0 0 0 3px var(--ring-accent)`. Claude ga hadapi exact problem ini — canvas mereka warmer, conventional border cukup.
+
+Adjustment ini bukan cosmetic. Itu solusi yang muncul dari canvas-locked decision di atas. Satu constraint melahirkan technique baru.
+
+### Kenapa ini penting disebut
+
+Ada banyak cara framing origin story — "pure vision saya", "murni inspirasi editorial magazine", dll. Saya pilih jujur: **Claude's palette is an anchor, Warm Editorial punya resonance dengan vocab itu, dan 3 adjustment sadar yang bikin beda**.
+
+Dua value dari framing ini:
+
+1. **Honest crediting** — tool yang saya pakai meninggalkan jejak estetika di hasil kerja saya. Pretend itu ga terjadi = dishonest.
+2. **Design judgment visible** — 3 adjustment di atas bukan accident. Each has reasoning (canvas constraint, contrast compliance, shadow-as-border rationale). Reader bisa evaluate trade-off-nya, bukan cuma "lihat hasilnya bagus".
+
+Bagi saya, ini jenis transparency yang jarang di blog design. Biasanya orang tunjukin hasil akhir + claim creative independence. Realitasnya: semua orang reference sesuatu. Yang matter itu **apa yang kamu adjust**, bukan apakah ada akar.
+
+## Warm Editorial: Fondasi Visual
+
+Inti design system yang akhirnya lahir:
+
+**Canvas favicon-locked.** Light `#ffffff`, dark `#09090b`. Ini **constraint**, bukan preference — favicon existing pakai warna ini, dan saya ga mau re-export 20+ icon file. Warmth harus lahir di atas canvas fixed ini.
+
+**Warmth via surfaces.** Parchment `#fbfaf4` (light) / `#141413` (dark) untuk semua kartu, panel, code block. Plus warm neutral text stack — tiap gray punya yellow-brown undertone. Zero cool blue-gray.
+
+**Three-voice typography:**
+
+- **Source Serif 4** variable (`opsz 8–60`) — display, heading, pull quote, lede
+- **IBM Plex Sans** — body, UI, form, button
+- **IBM Plex Mono** — kicker, byline, category tag, code, kbd (UPPERCASE, `letter-spacing: 0.1–0.18em`)
+
+Tiga voice ini yang bikin hierarchy kerasa tanpa harus nambah weight contrast terus. Serif untuk momen penting, sans untuk bacaan panjang, mono untuk engineering chrome.
+
+**Aksen tunggal mode-shifted**: terracotta `#c96442` di light, amber `#e8a567` di dark. Dipakai selektif: brand moment, CTA primary, link, focus ring. Bukan buat decorative noise.
+
+## Shadow-as-Border: Trik yang Bikin Konsisten
+
+Classic problem di warm palette: border 1px di atas parchment `#fbfaf4` + canvas `#ffffff` itu 2% contrast. Di light mode, border default `#e8e6dc` kelihatan nyaris invisible. Kalau saya bump border pekat, kartu jadi harsh. Stuck di tengah.
+
+Solusi: **shadow ring, bukan CSS border.**
+
+```css
+/* Wrong: CSS border */
+.card {
+  border: 1px solid var(--color-border);
+}
+
+/* Right: shadow-as-border */
+.card-surface {
+  box-shadow: 0 0 0 1px var(--color-border);
+}
+```
+
+Dua benefit:
+
+1. Ga ganggu box model — padding/width calc tetap clean
+2. Bisa stack multiple ring buat focus state: `box-shadow: 0 0 0 1px var(--color-border), 0 0 0 3px var(--color-accent-ring)`
+
+Pattern ini dipakai di semua kartu, chip, input, code block. Dokumentasi-nya cukup satu paragraph di DESIGN.md §3.5. Konsistensi visual-nya naik drastis karena satu mental model — "pakai ring, jangan border".
+
+## Full-Bleed Editorial Bands
+
+Pola editorial klasik: konten 720px tapi section background edge-to-edge. Di Astro + Tailwind dengan `max-w-3xl`, ini tricky — `w-screen` bikin horizontal scroll kalau html punya `overflow-x` default.
+
+Fix: kombinasi `html { overflow-x: clip }` + `w-screen` + absolute center.
+
+```css
+html {
+  overflow-x: clip; /* bukan hidden — clip lebih aman */
+}
+```
+
+```tsx
+<div className="relative">
+  <div
+    className="absolute inset-y-0 left-1/2 w-screen -translate-x-1/2 bg-[color:var(--band)]"
+  />
+  <div className="relative mx-auto max-w-3xl px-4 py-16">
+    {/* content constrained */}
+  </div>
+</div>
+```
+
+Hasilnya: hero parchment band, footer band, sticky header band — semua nempel edge viewport, konten di-center dan constrained. Editorial feel tanpa wrap section berlapis.
+
+## Rescission Story: Invert-Surface Dicoba dan Dibatalkan
+
+Bagian yang biasa dihilangkan dari blog design refactor — biasanya orang cuma nulis "yang akhirnya berhasil". Saya mau jujur soal yang dicoba lalu dibatalkan.
+
+Awalnya saya tambah pattern **invert-surface** — satu kartu per halaman yang pakai inversi palette buat efek spotlight. Di light mode, surface dark `#1a1a18`. Di dark mode, surface parchment warm dengan ring amber. Target: fokal point buat "answer moment" — total pesangon, total deposito, hasil cek produk.
+
+Implementasi smooth. Pattern-nya didokumentasikan di DESIGN.md §6.4. Dipasang di 7 tempat.
+
+Saya live dengan hasil 3-4 hari. Makin kesana makin ga enak.
+
+Masalahnya: **invert-surface putus rhythm**. Page yang rata dengan parchment rhythm jadi interrupted sama box hitam/cream tiba-tiba. Instead of feeling "spotlight", rasanya "incongruent". Satu kartu beda tone bikin mata _jump_, bukan _focus_.
+
+Saya revert. Ganti jadi parchment consistent di mana-mana, tapi tambah typography emphasis + kicker color untuk answer moment. Hasilnya lebih tenang tanpa kehilangan hierarchy.
+
+Rescission ini saya record di memory Claude (persisted file, cross-session) — jadi kalau ada session baru dan saya atau Claude sendiri suggest "kasih card spotlight" semacamnya, Claude akan ingat: "pattern ini dibatalkan, jangan reintroduce."
+
+**Pelajarannya**: jangan kecanduan pattern yang intellectually menarik tapi visually putus rhythm. Tes pakai mata sendiri after 3 days, bukan cuma during implementation. Kalau kerasa "too much", itu biasanya memang too much. Pattern yang di-rescind bukan failure — itu growth.
+
+## Chrome Polish: Scrollbar + Theme-color Dinamis
+
+Dua detail kecil yang kalau dibiarkan bikin rasa "ga niat".
+
+**Scrollbar theming.** Default browser scrollbar terang, chunky, cool gray. Di atas parchment warm — clash.
+
+```css
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+  background-clip: padding-box;
+}
+```
+
+Floating-thumb effect via `border: 2px solid transparent` + `background-clip: padding-box` — thumb terasa ngambang di track, bukan fill-all. Sesuai vibe editorial.
+
+**Theme-color dinamis.** iOS Safari + Arc browser punya status bar / address bar yang ikut `<meta name="theme-color">`. Kalau user toggle manual dark/light, default meta tag ga auto-update — status bar stuck di warna lama. Looks broken.
+
+Fix: sync meta via JS di theme-init script.
+
+```ts
+function syncThemeColor(isDark: boolean) {
+  const meta = document.querySelector<HTMLMetaElement>("#theme-color-meta");
+  if (!meta) return;
+  meta.content = isDark ? "#09090b" : "#ffffff";
+}
+
+// Init + observe class changes on <html>
+syncThemeColor(document.documentElement.classList.contains("dark"));
+
+new MutationObserver(() => {
+  syncThemeColor(document.documentElement.classList.contains("dark"));
+}).observe(document.documentElement, { attributeFilter: ["class"] });
+```
+
+Status bar iOS + Arc sekarang match mode aktual, bukan OS preference. Detail kecil. Tapi kalau break, "polish feeling"-nya hilang.
+
+## A11y Sweep: 44px Tap Target + Label Semantic
+
+Diaudit dengan subagent — 44×44px minimum touch target (WCAG 2.1 AA). Banyak button di tools (pesangon calculator, deposito, quick-date-jump, month nav) tingginya 36–38px. Bumped semua ke `min-h-[44px]`.
+
+Label semantic fix: `<label htmlFor="...">` kontrak-nya "clickable → focus associated control". Kalau saya pakai `<label>` tanpa `htmlFor` di custom button-based dropdown (bukan native `<select>`), itu salah semantic — bikin screen reader confused.
+
+```tsx
+// Wrong: label without htmlFor on custom dropdown
+<label>Tahun</label>
+<button type="button">{selectedYear}</button>
+
+// Right: span as visual caption
+<span className="text-sm text-muted">Tahun</span>
+<button type="button">{selectedYear}</button>
+
+// Also right: label + htmlFor for native control
+<label htmlFor="year">Tahun</label>
+<select id="year">...</select>
+```
+
+Hijack element meaning = a11y debt. Lint kasih warning, audit subagent flag, fix dalam beberapa commit. Basic hygiene, bukan bonus.
+
+## Dep Migration: Fase 1 dan Fase 2
+
+Setelah design system ~80% done, audit dep. 22 outdated, 30 vulnerabilities (mostly transitive dari astro).
+
+**Fase 1: Safe batch.** 13 packages patch + minor dalam satu commit. Plus astro 5.x security patch. Triple-green verify (`pnpm check` + `pnpm lint` + `pnpm build`). Done dalam 15 menit. Commit `14163c7`.
+
+**Fase 2: Major jumps.** Ini yang keras.
+
+Target:
+
+- Astro 5 → 6 (bundled dengan `@astrojs/mdx 5`, `@astrojs/react 5`, `@astrojs/cloudflare 13`)
+- ESLint 9 → 10 + `eslint-plugin-react-hooks` 5 → 7
+- TypeScript 5.9 → 6
+
+Plan awal: bump independent, satu-satu, verify antar step.
+
+Reality: **ekosistem belum align**.
+
+Astro ecosystem harus bareng — peer deps force bundled bump. Satu commit besar: `24d47fb chore(deps): bump astro ecosystem to v6 bundle`.
+
+Lalu ESLint 9 → 10. Seharusnya smooth — flat config udah dipakai. Tapi `eslint-plugin-react` stalled di peer ESLint 9. Ga ada release v10-compat. Community rewrite `@eslint-react/eslint-plugin` ada, native ESLint 10, bundled rules react-x/react-dom/react-jsx/naming-convention. Saya pivot.
+
+```bash
+pnpm remove eslint-plugin-react \
+  @typescript-eslint/eslint-plugin \
+  @typescript-eslint/parser
+
+pnpm add -D eslint@10 @eslint/js \
+  typescript-eslint \
+  @eslint-react/eslint-plugin
+```
+
+Config rewrite pakai `defineConfig` helper + extends chain + `projectService: true`. Initial lint run: 53 error + 52 warning. Tuning: relax `no-case-declarations`, `no-useless-assignment`, `@eslint-react/set-state-in-effect` (React Compiler opt-in), `naming-convention-ref-name`, `unsupported-syntax`.
+
+Lalu fix 11 warning one-by-one. Contoh:
+
+```tsx
+// cache-killer: self-assign triggers no-useless-assignment
+- window.location.href = window.location.href;
++ window.location.reload();
+
+// calendar-controls: computed-in-body triggers stability warning
+- const currentYear = new Date().getFullYear();
++ const [currentYear] = React.useState(() => new Date().getFullYear());
+```
+
+Commit `d6222c3 chore(deps): migrate to ESLint v10 + @eslint-react`.
+
+Lalu TypeScript 5.9 → 6 — modern stack, migrasi smooth. Commit `a1c8834 chore(deps): bump typescript to 6.0.3`.
+
+Hold list (belum saya bump):
+
+- `lucide-react 0.x → 1.x` — possible icon renames, butuh audit dulu
+- `@types/node 22 → 25` — stay on 22 match runtime engine (saya di Node 22.21.1)
+
+**Pelajarannya**: plan rarely survives contact with ecosystem. `eslint-plugin-react` harus _swap_, bukan _bump_. Plan awal "eslint first, react-hooks second" collapse jadi bundled bump karena `react-hooks 5` ga support ESLint 10 either. Adapt to reality, bukan insist on plan.
+
+## Build ≠ Preview: Pelajaran SSR React Hook
+
+Setelah Astro v6 bundle masuk, `pnpm build` pass. Kirain selesai. Lanjut dev server — **black screen**. Console:
+
+```
+Invalid hook call. Hooks can only be called inside of the body of a function component.
+  at header.tsx:26
+```
+
+Hipotesis pertama: React duplicated dari dep optimizer. Solusi: `resolve.dedupe`. Gagal.
+
+Confused — build happy, dev broken. Saya consult advisor agent, yang flag dua hal:
+
+1. **`@astrojs/cloudflare v13` run dev via workerd**, bukan Node. workerd ga punya `MessageChannel`. `react-dom/server` default path butuh ini — hence `ReactSharedInternals.H` dispatcher null di SSR runtime.
+2. **`pnpm preview` (wrangler)** adalah gate ke-empat yang wajib. Build pass ≠ runtime pass. Dev pass ≠ production pass. Verification harus: check + lint + build + **preview**.
+
+Fix: unconditional `react-dom/server.edge` alias + `ssr.noExternal: ['react', 'react-dom']`.
+
+```js
+// astro.config.mjs
+export default defineConfig({
+  vite: {
+    plugins: [tailwindcss()],
+    resolve: {
+      alias: { "react-dom/server": "react-dom/server.edge" },
+    },
+    ssr: {
+      noExternal: ["react", "react-dom"],
+    },
+  },
+});
+```
+
+`server.edge` punya MessageChannel polyfill built-in (buat workerd), plus `noExternal` bikin React inline ke SSR bundle biar `ReactSharedInternals` shared — Vite 7 dep optimizer by default split React ke `deps_ssr` chunk, which breaks shared internals sharing antar chunk.
+
+Commit `6f2f81e fix(astro): apply edge renderer in dev + inline React for SSR`.
+
+**Pelajaran quadruple-gate**: check + lint + build + preview. Kalau cuma sampai build, kamu trust CI green tapi prod bisa crash. Preview via production-like runtime (wrangler buat CF Workers, `vercel dev` buat Vercel) adalah gate terakhir yang wajib. Tanpa gate ini, SSR hook bug kayak gini bisa lolos ke production.
+
+## Skeleton → Spinner: Kadang Simpler = Jelas
+
+Calendar year navigation widget "Libur Berikutnya" pakai skeleton loader. Pas user pindah tahun (2026 → 2027), skeleton muncul sebentar lalu widget muncul. Test manual saya sendiri: **"ada fade effect yang ga saya mau."**
+
+First attempt: `transition:animate="none"` di Astro view transition. Masih fade.
+
+Investigate: ada CSS opacity transition di `global.css`, bukan view transition.
+
+```css
+.skeleton-container {
+  opacity: 1;
+  transition: opacity 200ms;
+}
+.skeleton-container.fade-out {
+  opacity: 0;
+}
+.countdown-container {
+  opacity: 0;
+  transition: opacity 200ms;
+}
+.countdown-container.fade-in {
+  opacity: 1;
+}
+```
+
+Removed CSS transitions. Masih ada kesan shift. Akhirnya realize — **skeleton structure** udah beda sama widget actual (yang baru di-refactor di sesi sebelumnya). Swap antar state keliatan kayak layout shift, bukan loading.
+
+Saya coba rework skeleton supaya match structure baru. Ribet. Lalu ask-myself: "skeleton ini ngasih value apa?" — widget load-nya cepet (&lt;200ms), dan struktur berubah antar state (beda holiday = beda icon + text length).
+
+**Pivot: ganti spinner.**
+
+```tsx
+<div className="flex h-20 items-center justify-center" role="status">
+  <Loader2 className="h-6 w-6 animate-spin text-[color:var(--color-accent)]" />
+  <span className="sr-only">Memuat...</span>
+</div>
+```
+
+Lebih bersih. Instant-swap. Ga ada fade, ga ada struktur mismatch.
+
+**Pelajarannya**: skeleton berguna kalau struktur yang dimuat stable + durasi loading cukup panjang untuk memerlukan visual preview. Kalau strukturnya berubah antar state atau durasi &lt;500ms, skeleton bikin lebih bingung daripada spinner sederhana. Less is more.
+
+## DESIGN.md sebagai Living Doc
+
+Setelah dep migration selesai, saya check DESIGN.md — outdated.
+
+Drift yang ketemu:
+
+- Font reference masih "Geist Sans/Mono" (udah pindah ke IBM Plex)
+- Invert-surface disebut di 7 section (udah di-rescind)
+- Pattern baru (full-bleed band, scrollbar, theme-color sync, a11y 44px) ga terdokumentasi
+- Version field masih v1.0
+
+Normal kalau doc dibiarkan drift — kode berubah cepat, doc lebih lambat. Tapi kalau dibiarkan terus, doc jadi misleading artifact.
+
+Sweep methodology:
+
+1. **Grep-based drift detection** — cari token lama (`Geist`, `invert-surface`) lewat `grep -rn`
+2. **Batch edit by concern** — font rename → invert removal → pattern addition → version bump. Satu concern per batch biar reviewable.
+3. **Cross-link update** — kalau section A berubah, check section B yang refer ke A
+
+Result: DESIGN.md v1.1. Commit `aa4fbe1 docs(design): sync DESIGN.md with current implementation`.
+
+**Kenapa ini penting?** Karena DESIGN.md bukan cuma doc buat human — dia **ground truth buat Claude**. Setiap session baru, Claude baca DESIGN.md buat inform design decision. Doc drift = Claude akan suggest pattern lama (kaya invert-surface yang udah di-rescind).
+
+Doc as prompt-anchor. Update doc = update prompt quality.
+
+Ini salah satu alasan kenapa DESIGN.md workflow menang buat saya: doc-nya _adalah_ file yang Claude baca. Single source of truth. Ga ada double-bookkeeping "update di canvas juga". Git log is the history.
+
+## Workflow yang Saya Pakai
+
+Setiap siklus refactor pakai pola 4-fase:
+
+1. **Brainstorm** via skill `superpowers:brainstorming` — clarifying question satu-satu, 2-3 approach per topic, pilih satu, write spec.
+2. **Plan** via skill `superpowers:writing-plans` — file-by-file task, estimasi risk, TDD step kalau applicable.
+3. **Implement** — sebagian manual edit, sebagian via subagent fresh context (pakai `superpowers:subagent-driven-development` buat refactor besar yang butuh isolation).
+4. **Review** — subagent code review pass, terus quadruple-gate verify (lint + check + build + preview).
+
+Antar siklus ada **memory cross-session**. Claude Code punya file memory persisted — `project_*.md`, `feedback_*.md`, `user_*.md`. Kalau saya compact context window, sesi baru tinggal baca memory file dan lanjut. Tanpa itu, refactor 100+ commit kayak gini impossible dalam satu mental stack.
+
+Jadi toolchain-nya minimal:
+
+- **Claude Code** di terminal (VSCode)
+- **DESIGN.md** di `docs/design/`
+- **Memory files** di `.claude/memory/`
+- **Skills** buat workflow standar (brainstorm, plan, subagent-dev)
+- **Git** buat history
+
+Satu home. Zero vendor lock-in buat design artifact. Resource footprint kecil (dibanding split ke Claude Design + Claude Code).
+
+## Lessons Learned
+
+Dari ~130 commit, beberapa pelajaran yang stick:
+
+1. **Match tool to context.** Claude Design bagus — buat team workflow. DESIGN.md bagus — buat solo engineer di terminal. Tool yang "better" tergantung audience, bukan absolut.
+
+2. **"At least for now" is honest.** Research preview + quota split + solo context = marginal fit saat ini. Kalau GA release + quota bundled + team use case, saya re-evaluate. Hedge temporal = intellectual honesty.
+
+3. **Anchor to external reference.** getdesign.md kasih 69+ inspiration point. Pilih 2-3 yang resonate, extract _pattern_ (bukan copy _aesthetic_), build sendiri. Fresh canvas "dari nol" biasanya biasa aja; referensi adapt-sadar biasanya punya karakter.
+
+4. **Rescission is growth.** Pattern yang intellectually menarik tapi visually putus rhythm = harus dibatalkan. Self-audit after 3 days, bukan cuma during implementation.
+
+5. **Plan rarely survives ecosystem.** Fase 2 berubah mid-flight (plugin swap, bundled bump). Adapt to reality, bukan insist on original plan.
+
+6. **Quadruple-gate verify.** check + lint + build + **preview**. Build pass ≠ production pass. Runtime differs (workerd vs Node, edge vs classic).
+
+7. **Less is more di loading state.** Skeleton need stable structure + &gt;500ms load. Default to spinner kecuali ada justifikasi spesifik. Kompleksitas skeleton harus earn its keep.
+
+8. **A11y is basic hygiene, not bonus.** 44px tap target, label semantic, ARIA role, sr-only text. Audit berkala, fix di PR kecil.
+
+9. **Doc drift is real.** DESIGN.md = prompt-anchor buat Claude. Update doc = update prompt quality. Swept-clean docs help every future session.
+
+10. **Git log is the map.** Commit archaeology jujur. 100+ commit include pivots, backtracks, bundled decisions. Plan changes visible di `git log --oneline`. Kalau ada blogger minta peta kerja saya, saya tunjukin git log dulu sebelum prose.
+
+## Kapan Saya Akan Reconsider Claude Design?
+
+Hedge "at least for now" butuh signal spesifik yang bikin saya re-evaluate. Beberapa yang akan bikin saya lihat lagi Claude Design:
+
+- **GA release + stable feature set.** Kalau tool udah keluar dari research preview, workflow-nya ga akan pivot 2-3 bulan lagi. Investment saya aman.
+- **Quota bundled.** Kalau subscription limit digabungin sama Claude Code (atau at least nge-extend dari subscription yang sama tanpa fragmentation), friction hilang.
+- **Team atau client work.** Kalau saya butuh collaboration dengan designer/PM/marketer di satu canvas — inline comment, org-scoped sharing, group conversation — itu real valuable.
+- **Output fit berubah.** Kalau kebutuhannya prototype cepet buat client pitch, visual canvas &gt; markdown file. Deck generation, landing page iteration, marketing collateral — itu sweet spot Claude Design.
+
+Sampai salah satu condition tercapai, DESIGN.md di repo + Claude Code di terminal cukup buat saya. Bukan statement ke anyone else — cuma realitas context saya sekarang.
+
+## Penutup
+
+Tulisan ini lahir dari curiosity: kalau nge-refactor design system dengan AI sebagai partner, sharing-apa yang worth ditulis? Ternyata yang paling worth bukan "gimana cara pakai Claude" — itu udah banyak artikel. Yang worth itu **pilihan tool**, **pattern yang dicoba dan dibatalkan**, **reality check ekosistem**, **gate verifikasi yang wajib**.
+
+Buat kalian yang solo dev + nge-build design system buat project personal:
+
+- Mulai dari referensi eksternal. [getdesign.md](https://getdesign.md/) pas.
+- Tulis DESIGN.md pertama, iterate — biarkan ia jadi living doc.
+- Pakai Claude Code di terminal buat implementing, reviewing, dan remembering.
+- Jujur sama diri — kalau pattern yang dicoba ga enak, batalin. Rescission = growth.
+- Verifikasi sampai **preview**, bukan cuma build.
+- Commit kecil, sering. Git log is your map.
+
+Dan — **at least for now** — DESIGN.md lebih cocok daripada Claude Design buat saya. Mungkin buat kalian juga. Mungkin ga. Match tool to context, bukan follow hype.
+
+Kalau suatu hari Claude Design GA dengan quota bundled dan saya ada team kerjaan, saya akan re-evaluate. Tapi hari ini, markdown + terminal + Claude Code + `git commit` enough.
+
+Selamat nge-design. 🎨
