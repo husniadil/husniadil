@@ -1,0 +1,284 @@
+---
+title: "Mencoba Claude Design Lagi — Dengan DESIGN.md sebagai Anchor"
+date: "2026-04-24"
+publishedTime: "2026-04-24T21:00:00Z"
+modifiedTime: "2026-04-24T21:00:00Z"
+description: "Empat hari setelah menulis kenapa saya pilih DESIGN.md daripada Claude Design, saya akhirnya coba lagi — kali ini dengan DESIGN.md sudah matang di tangan. Workflow yang muncul: canonical spec + AI reviewer, bukan either-or. 27 section review, 3 commits, pattern iteration yang beda dari yang saya duga."
+tags:
+  [
+    "Design System",
+    "Claude",
+    "Claude Design",
+    "DESIGN.md",
+    "AI-Assisted Development",
+    "Workflow",
+    "Design Review",
+    "Astro",
+    "Warm Editorial",
+    "Refactoring",
+  ]
+status: "published"
+---
+
+## Empat Hari Kemudian
+
+Empat hari lalu saya [menulis kenapa saya memilih DESIGN.md daripada Claude Design](/blog/kenapa-saya-memilih-design-md-daripada-claude-design). Tesisnya sederhana: _canonical spec yang saya tulis sendiri lebih authoritative daripada AI-generated design system_. Context saya: solo dev, terminal-first, udah invest di Claude Code workflow.
+
+Post itu ditutup dengan `(at least for now)` — signal bahwa verdict-nya tentative. Tool akan matang, limit structure bisa berubah, workflow saya juga bisa shift.
+
+Ga nunggu lama. Hari ini saya balik ke Claude Design.
+
+Bedanya: kali ini DESIGN.md sudah matang. 1366 baris. Warm Editorial tokens fixed. Self-hosted fonts in place. Shadow-as-border pattern sudah terimplementasi.
+
+Saya pikir: _"kalau Claude Design baca DESIGN.md yang sudah kuat, gimana outcome-nya?"_
+
+Spoiler: bukan apa yang saya duga. Claude Design bukan replacement, dia reviewer. Dan ternyata reviewer eksternal yang fresh-eyes itu bikin DESIGN.md saya — dan codebase — jadi lebih baik.
+
+Tulisan ini tentang workflow yang muncul: **canonical spec + periodic AI review**. Bukan either-or.
+
+## Setup: 15 Menit Dari Nol
+
+Onboarding dari nol ke siap-review, 15 menit:
+
+1. **Brief form**: `husniadil.com — personal blog + Indonesian calendar + small tools. Stack: Astro 6, React 19, Tailwind v4, Cloudflare Workers. Warm Editorial aesthetic.`
+2. **Notes field**: paste design direction summary + hard constraints (canvas-locked #ffffff/#09090b, shadow-as-border, Mono UPPERCASE chrome, three-voice typography).
+3. **Connect repo**: GitHub integration, Claude Design scan codebase.
+4. **Upload fonts**: download Source Serif 4, IBM Plex Sans, IBM Plex Mono dari Google Fonts → compress ke WOFF2 via `woff2_compress` (~60% lebih kecil dari TTF) → drag upload.
+5. **Wait**: Claude Design synthesis DESIGN.md + repo scan + notes → generate 27 section proposals.
+
+Yang surprising: dia bikin file system sendiri di sandbox-nya:
+
+```
+assets/              ← bg SVGs, favicons, OG image
+fonts/               ← yang saya upload
+preview/             ← 24 HTML per-section previews
+colors_and_type.css  ← canonical tokens extracted
+ui-kit.html          ← full in-context render
+DESIGN_SOURCE.md     ← synthesized spec
+README.md            ← narrative brand manifesto
+SKILL.md             ← Claude Design's internal instructions
+```
+
+Artinya: Claude Design ga cuma render mockup, dia **synthesize & materialize** design system sebagai portable artifact set. Ini yang saya underestimate di post sebelumnya.
+
+## Review Flow: 27 Section, Iterasi Per Component
+
+Review Claude Design punya single mode: **per section, Looks good / Needs work**. Tiap proposal muncul sebagai card, Mas approve atau push back dengan feedback text.
+
+Saya spend ~3 jam total review 27 section. Hit rate:
+
+- **~60% first-pass accept** — Accent, Canvas, Warm neutrals, Parchment surfaces, Semantic categories, Typography scale, Syntax palette, Tag chips, dll.
+- **~40% need 1-2+ iterasi** — Blog card, Button, Calendar month, Grid & spacing, Radius scale, Header.
+
+Iterasi tertinggi: **Header, 4-pass**. Sisanya 1-2 pass.
+
+Total session: 3 commits shipped.
+
+```
+59bb96b chore(design): self-host fonts + codify review insights
+8c1fa72 refactor(design): apply Claude Design review batch
+93b6129 docs(design): import Claude Design narrative insights + archive snapshot
+```
+
+Yang menarik: patternya repeat. Saya observe empat yang worth share.
+
+## Pattern A — Table-Derived Section Akurat 100%
+
+Section yang value-nya udah **codified dalam tabel di DESIGN.md** → Claude Design extract dengan **fidelity 100%**.
+
+Contoh. DESIGN.md §3.6 Semantic Categories tabel:
+
+```markdown
+| Category     | Light     | Dark    |
+|--------------|-----------|---------|
+| Keagamaan    | #c96442   | #e8a567 |
+| Cuti Bersama | #855a00   | #f0a27b |
+| Nasional     | #557c4d   | #9fc88d |
+```
+
+Claude Design output preview: 6 swatches exact match. Hex sampai digit terakhir. Plus annotation _"warm-earth, not severity"_ — capture philosophy-nya.
+
+Sama untuk Canvas colors (2 values), Warm neutrals (10 values), Holiday highlight (6 values + alpha bg), Syntax palette (12 values di light+dark). **30+ token values, zero drift.**
+
+Pelajaran: **struktur tabel di DESIGN.md = AI extraction pipeline yang reliable.** Kalau spec dalam prose scattered, extraction-nya jadi heuristic.
+
+## Pattern B — AI Default Simplify, Feedback Restore Specificity
+
+Section component-level punya failure mode yang predictable: **Claude Design default simplify**, miss nuance yang di-codify di shipped code.
+
+**Blog card pass 1**:
+- Proposal: multi-tag pill chips + "24 APR 2026" English abbrev + "6 MIN" tanpa READ suffix
+- Shipped: single primary tag inline + "24 April 2026" id-ID full month + "6 MIN READ"
+- Gap: locale convention + info density
+
+Saya push `Needs work` dengan feedback eksplisit:
+
+```
+1. Render only the PRIMARY tag (tags[0]) inline in accent color.
+2. Keep metadata single horizontal row with middot: {date} · {reading} · {TAG}.
+3. Date format: id-ID full month "24 April 2026", not "APR".
+4. Reading time: "6 MIN READ" with "READ" suffix.
+5. CTA: "Baca artikel →" with CSS uppercase transform.
+```
+
+**Blog card pass 2**: 5/5 fix landed. Plus tag "AI" di-render dengan accent color terracotta — saya ga minta eksplisit, dia infer dari existing `blog-card.astro` pattern.
+
+Pattern ini repeat:
+- **Button pass 1**: 4 variants → miss `secondary`, `link`, `mono`, `destructive` yang shipped punya. Pass 2: 8 variants complete + bonus muted rose destructive color.
+- **Calendar month pass 1**: Sunday-first + no legend. Pass 2: Monday-first + category labels (KEAGAMAAN / CUTI BERSAMA) di right column.
+- **Radius scale pass 1**: 4 tiers. Pass 3 (butuh 2 round feedback): 6 tiers dengan role mapping.
+
+**Pelajaran**: AI review tools cenderung **simplify ke "yang paling umum ditemukan"** — sering Tailwind default, US convention, generic dev aesthetic. Feedback spesifik restore specificity, **plus** biasanya dapat bonus improvements yang ga saya minta.
+
+## Pattern C — Header 4-Pass, dan Satu Admission
+
+Header section butuh paling banyak iterasi. Ini worth telling secara detail — ada satu momen saya salah yang bikin lesson personal.
+
+**Pass 1**: Logo "h" lowercase serif dalam rounded tile terracotta. Bukan match shipped site (fraktur H capital, transparent, text-primary color).
+
+**Feedback saya**:
+```
+The site's logo is a single lowercase 'h' character rendered in the
+"UnifrakturMaguntia" font...
+```
+
+Perhatikan typo paradigm saya: **saya tulis "lowercase 'h'"**, padahal shipped pakai **capital H** (saya baru realize kemudian pas double-check favicon).
+
+**Pass 2**: Claude Design obedient — tile removed, color fixed, tapi font masih serif generic (UnifrakturMaguntia belum apply). Character: lowercase h, sesuai feedback salah saya.
+
+**Pass 3**: Upload UnifrakturMaguntia woff2, kasih feedback eksplisit `use UnifrakturMaguntia for the single 'h' character`. Font apply. Tapi **case masih salah** — lowercase h dengan fraktur decoration. Fraktur style-nya ada tapi character-nya ga match favicon.
+
+Baru pass 3 saya realize: **shipped site pake capital H**. Favicon itu stylized serif "H", bukan "h". Post pertama saya sebut DESIGN.md §1: _"The favicon itself is a stylized serif **H**..."_ — saya tulis itu 4 hari lalu dan lupa.
+
+**Pass 4**: Feedback `use UPPERCASE "H" (capital), not lowercase "h"`. Claude Design landed — capital H fraktur proper, matches favicon.
+
+Pelajaran personal: **verify char case di source spec sebelum write feedback**. Saya treat screenshot as source of truth padahal DESIGN.md yang authoritative. Small mistake di round 1 → 2 extra iteration. Saya underestimate inertia dari feedback-yang-salah — AI respect feedback precisely, termasuk error-nya.
+
+Bigger lesson: AI reviewer magnify feedback quality. Vague feedback → vague result. Specific feedback (termasuk yang salah) → specific result (termasuk error propagation).
+
+## Pattern D — Cascading Feedback yang Auto-Propagate
+
+Pattern yang impressed me paling: **feedback satu component cascade ke component lain**, tanpa saya minta explicit.
+
+Case: di Prose block feedback, saya tulis:
+
+```
+Date format: "24 April 2026" (id-ID full month), not "24 APR 2026".
+Apply this convention to any other component in the spec.
+```
+
+Kalimat terakhir — "apply to any other component" — saya tulis defensively, untuk prevent scoped fix. Outcome: Claude Design **auto-update Mono chrome section example** yang udah saya approve sebelumnya. Dia recompute consistency pas rule baru di-internalize.
+
+Bukan frozen snapshot per section. **Living spec dengan rule propagation.**
+
+Implikasi: feedback yang sifatnya universal — convention, locale, naming rule — layak di-state eksplisit `apply globally`. Claude Design respond ke frasa itu dengan cross-section update. Kalau saya cuma fix individual instance, dia fix individual.
+
+## What AI Review Does Well, dan Ga
+
+Dari 27 section, 3 commits, ~3 jam review — saya extract calibration berikut.
+
+### Does well
+
+1. **Token extraction dari spec tabel** — near-perfect fidelity, sudah covered di Pattern A.
+2. **Constraint preservation** — canvas-locked annotation di-preserve, semantic categories context-specific (religious/national/leave), shadow-as-border technique di-treat first-class.
+3. **Cross-section consistency check** — UI Kit composition section adalah integration test. Pas Calendar month spec update ke Monday-first, UI Kit composition re-render dengan Monday-first juga (pass 2). Regression caught.
+4. **Prose synthesis** — README.md Claude Design generate punya phrasing brilliant: _"The site reads like a letter, not a dashboard"_, _"All neutrals are warm. Pure gray is forbidden"_, _"Surfaces are drawn with shadow, not border"_. Saya harvest tiga ini ke DESIGN.md §Design Thesis.
+5. **Fresh eyes expose shipped gaps** — yang ga saya notice sendiri:
+   - `Input` component stock shadcn (belum di-customize ke Warm Editorial)
+   - Icon stroke width accidental 2 (Lucide default) bukan deliberate 1.5
+   - Scattered Mono values (10.5 di sini, 11 di sana, tracking 0.08 vs 0.14 vs 0.18)
+
+Fresh reviewer surfaced drift yang accumulate diam-diam.
+
+### Doesn't well
+
+1. **Variant taxonomy simplification** — Button 7 variants → 4 (miss mono, secondary, link, destructive). Radius 6 tiers → 4 (miss XS, PILL). Simplification feels clean tapi **lose shipped reality**.
+2. **Locale convention** — default US (Sunday-first, English month "APR", generic patterns). Indonesian context butuh explicit push back.
+3. **Asset fidelity** — PNG favicon ga bisa di-vectorize exact. Custom glyph (fraktur H) jadi generic tile "h" sampai saya upload font + eksplisit specify character.
+4. **Spec-layer vs preview-layer drift** — Radius scale pass 2: visual preview update tapi `colors_and_type.css` stylesheet belum update. Saya harus manual edit stylesheet — preview-level fix ≠ source-level fix. Worth aware.
+
+## Konkret Benefits
+
+Three commits shipped dari session:
+
+**`59bb96b` — Self-host brand fonts + codify insights**
+- Replace Google Fonts CDN dengan self-hosted WOFF2 di `public/fonts/`
+- ~60% smaller than TTF, 1 round-trip vs 4, plus privacy win (no Google CDN)
+- Codify 9 sections ke DESIGN.md: H1/H2 variant rename, Radius scale, Icon stroke rule, Mono chrome variants, Brand assets, Focus ring, Byline date convention, Calendar week convention, Editorial patterns.
+
+**`8c1fa72` — Apply review batch**
+- 22 files changed, +191/-60 lines
+- 14 refactor items across 4 logical PR batches:
+  - Foundation: radius tokens, Mono chrome utilities, focus-ring utility
+  - Components: Button `solid` variant, Input currency type, Label Mono UPPERCASE, Iconography stroke 1.5 (12 files), Breadcrumb accent hover + text slash separator, Tag chips active state
+  - Pages: Tool card 2-level kicker taxonomy, Calendar legend category labels, Blog card leading 1.5
+  - Homepage: § section anchors, Header active nav state
+
+**`93b6129` — Import narrative insights + archive snapshot**
+- DESIGN.md +139 lines from Claude Design's README synthesis
+- Voice & Copywriting section (§1.5) — "em-dash is punctuation; emoji is not"
+- Accent use/don't-use list (§3.4)
+- Mode parity principle (§10.9)
+- Archive Claude Design sandbox files ke `docs/design/claude-design-snapshot/`
+
+Net: DESIGN.md grow dari 1366 → 1812 baris (+33%). Shipped code aligned dengan spec yang lebih kaya.
+
+## Workflow yang Emerged
+
+Dari reflection post ini, pattern yang saya settle:
+
+1. **Maintain canonical spec manually** — DESIGN.md tetap source of truth. Hand-crafted, version-controlled, markdown.
+2. **Periodic AI review** — Claude Design (atau similar) sebagai fresh-eyes reviewer. Worth invoke saat major milestone: refactor, feature addition, biannual audit.
+3. **Snapshot archive per session** — each review session → dated subfolder (`claude-design-snapshot-2026-04-24/`). Append-only history. Timeline of spec evolution.
+4. **Selective import** — AI-generated prose/rules yang hit → harvest ke DESIGN.md dengan attribution. Generic simplifications → reject.
+5. **Constraint preservation rules** — eksplisit state "apply globally" di feedback untuk convention/locale. Prevent scope-limited fixes.
+
+## Apa yang Saya Update dari Post Sebelumnya
+
+Post 4 hari lalu, tiga concern saya terhadap Claude Design:
+
+1. **Research preview status** — masih valid. Tool bisa pivot 2-3 bulan lagi.
+2. **Quota split** — masih valid. Saya masih invest di Claude Code terminal.
+3. **Audience fit team-oriented** — **partially updated**. Solo dev juga dapat value sebagai fresh-eyes reviewer, ga cuma team collaboration.
+
+Bigger update: di post pertama saya framing Claude Design sebagai **replacement DESIGN.md**. Itu salah frame. Claude Design bukan alat nulis design system — dia alat **review dan synthesize** design system yang udah ada.
+
+Dengan DESIGN.md di tangan, Claude Design jadi powerful complement:
+- Extract tokens → verify fidelity 
+- Generate previews → visual regression baseline
+- Synthesize prose → harvest for DESIGN.md narrative depth
+- Cross-section consistency check → catch drift
+
+DESIGN.md yang hand-crafted, Claude Design yang external validation. Keduanya main game beda. Keduanya valuable.
+
+## Next: Prototyping, Slide Deck, Beyond
+
+Review retrospective udah. Next exploration yang saya lirik dengan Claude Design + DESIGN.md anchor:
+
+**Prototype new features from existing system**. Bikin design untuk feature baru (misal: newsletter signup widget, reading history panel, tool sidebar extension) using tokens + components yang sudah existing. Claude Design bisa generate mockup yang on-brand out-of-the-box karena spec-nya udah kuat.
+
+**Slide deck generation**. Brand-consistent presentation — talk materials, workshop slides, pitch decks — langsung dari design tokens. Tanpa jump ke Figma/Keynote.
+
+**Edge case stress testing**. Generate error states, empty states, loading skeletons untuk existing components. Claude Design bisa forecast states yang saya belum encounter.
+
+**Portability validation**. Export DESIGN.md ke tool lain (Figma Community template, Penpot, raw HTML spec) — check how robustly spec transfers antar platform.
+
+Semua ini dengan DESIGN.md tetap sebagai canonical anchor. Claude Design ga modify spec saya — dia generate derivatives dari spec yang saya maintain.
+
+## Kesimpulan
+
+- **Tesis saya tetap**: DESIGN.md hand-crafted > AI-generated design system sebagai source of truth.
+- **Yang saya update**: Claude Design (dan similar AI design tools) bukan replacement — dia **reviewer dan derivative generator**. Beda role, beda value.
+- **Workflow yang work**: canonical spec + periodic AI review + snapshot archive + selective import.
+- **Practical gains dari session**: 3 commits, DESIGN.md +33% growth, 14 code refactors, self-hosted fonts, explicit constraint codification.
+- **Feedback quality amplify AI quality** — vague in, vague out. Specific in, specific out (plus bonus).
+- **Spec dalam tabel > spec dalam prose** untuk AI extraction fidelity.
+- **"Apply globally" frasa worth state eksplisit** untuk convention/locale rules.
+
+Claude Design bukan versi polishing Figma. Bukan juga ancaman ke hand-crafted design workflow. Dia tool baru dengan niche spesifik: **synthesize external perspective dari existing design system**.
+
+Post 4 hari lalu saya tulis `(at least for now)` — signal bahwa verdict saya tentative. Ternyata benar, cuma bukan cara yang saya duga. Saya ga balik full ke Claude Design. Saya adopt Claude Design **as part of workflow yang DESIGN.md-centric**.
+
+Tools rarely replace. More often, mereka slot in — kalau kita treat-nya dengan expectation yang benar.
+
+Berikutnya mungkin: eksplorasi prototype widget baru via Claude Design. Atau coba slide deck generation. Kalau sempat, saya tulis lagi.
