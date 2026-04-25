@@ -107,6 +107,7 @@ Pelajaran: **struktur tabel di DESIGN.md = AI extraction pipeline yang reliable.
 Section component-level punya failure mode yang predictable: **Claude Design default simplify**, miss nuance yang di-codify di shipped code.
 
 **Blog card pass 1**:
+
 - Proposal: multi-tag pill chips + "24 APR 2026" English abbrev + "6 MIN" tanpa READ suffix
 - Shipped: single primary tag inline + "24 April 2026" id-ID full month + "6 MIN READ"
 - Gap: locale convention + info density
@@ -124,6 +125,7 @@ Saya push `Needs work` dengan feedback eksplisit:
 **Blog card pass 2**: 5/5 fix landed. Plus tag "AI" di-render dengan accent color terracotta — saya ga minta eksplisit, dia infer dari existing `blog-card.astro` pattern.
 
 Pattern ini repeat:
+
 - **Button pass 1**: 4 variants → miss `secondary`, `link`, `mono`, `destructive` yang shipped punya. Pass 2: 8 variants complete + bonus muted rose destructive color.
 - **Calendar month pass 1**: Sunday-first + no legend. Pass 2: Monday-first + category labels (KEAGAMAAN / CUTI BERSAMA) di right column.
 - **Radius scale pass 1**: 4 tiers. Pass 3 (butuh 2 round feedback): 6 tiers dengan role mapping.
@@ -137,6 +139,7 @@ Header section butuh paling banyak iterasi. Ini worth telling secara detail — 
 **Pass 1**: Logo "h" lowercase serif dalam rounded tile terracotta. Bukan match shipped site (fraktur H capital, transparent, text-primary color).
 
 **Feedback saya**:
+
 ```
 The site's logo is a single lowercase 'h' character rendered in the
 "UnifrakturMaguntia" font...
@@ -202,11 +205,13 @@ Fresh reviewer surfaced drift yang accumulate diam-diam.
 Three commits shipped dari session:
 
 **`59bb96b` — Self-host brand fonts + codify insights**
+
 - Replace Google Fonts CDN dengan self-hosted WOFF2 di `public/fonts/`
 - ~60% smaller than TTF, 1 round-trip vs 4, plus privacy win (no Google CDN)
 - Codify 9 sections ke DESIGN.md: H1/H2 variant rename, Radius scale, Icon stroke rule, Mono chrome variants, Brand assets, Focus ring, Byline date convention, Calendar week convention, Editorial patterns.
 
 **`8c1fa72` — Apply review batch**
+
 - 22 files changed, +191/-60 lines
 - 14 refactor items across 4 logical PR batches:
   - Foundation: radius tokens, Mono chrome utilities, focus-ring utility
@@ -215,6 +220,7 @@ Three commits shipped dari session:
   - Homepage: § section anchors, Header active nav state
 
 **`93b6129` — Import narrative insights + archive snapshot**
+
 - DESIGN.md +139 lines from Claude Design's README synthesis
 - Voice & Copywriting section (§1.5) — "em-dash is punctuation; emoji is not"
 - Accent use/don't-use list (§3.4)
@@ -244,7 +250,8 @@ Post 4 hari lalu, tiga concern saya terhadap Claude Design:
 Bigger update: di post pertama saya framing Claude Design sebagai **replacement DESIGN.md**. Itu salah frame. Claude Design bukan alat nulis design system — dia alat **review dan synthesize** design system yang udah ada.
 
 Dengan DESIGN.md di tangan, Claude Design jadi powerful complement:
-- Extract tokens → verify fidelity 
+
+- Extract tokens → verify fidelity
 - Generate previews → visual regression baseline
 - Synthesize prose → harvest for DESIGN.md narrative depth
 - Cross-section consistency check → catch drift
