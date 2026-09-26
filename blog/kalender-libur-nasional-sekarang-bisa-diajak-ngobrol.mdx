@@ -2,8 +2,8 @@
 title: "Kalender Libur Nasional Sekarang Bisa Diajak Ngobrol: Bikin MCP Server buat Calendar"
 date: "2026-08-02"
 publishedTime: "2026-08-02T09:00:00Z"
-modifiedTime: "2026-08-31T05:00:00Z"
-description: "Fitur calendar hari libur nasional yang viral organik sekarang punya MCP server sendiri di /calendar/mcp. Bahas cara connect dari Claude Desktop/web/Cursor, delapan tools yang tersedia, tiga MCP Apps interaktif, dan technical gotchas soal dual-era protocol dan trailing-slash redirect yang diam-diam bikin POST gagal."
+modifiedTime: "2026-09-26T18:30:00Z"
+description: "Fitur calendar hari libur nasional yang viral organik sekarang punya MCP server sendiri di /calendar/mcp. Bahas cara connect dari Claude Desktop/web/Cursor, delapan tools yang tersedia, MCP Apps interaktif, dan technical gotchas soal dual-era protocol dan trailing-slash redirect yang diam-diam bikin POST gagal."
 tags:
   [
     "MCP",
@@ -42,19 +42,17 @@ https://husniadil.com/calendar/mcp
 
 Ga ada API key, ga ada login, ga ada rate limit per-client. Server-nya public dan read-only — cuma nge-serve data kalender, jadi ga ada alasan buat auth-gate.
 
-**Claude Desktop / Claude web** — tambahin ke `claude_desktop_config.json` (atau connector settings di web):
+**Claude (web dan desktop)** — tambahin sebagai custom connector di pengaturan connector, terus paste URL di atas. Bagian auth biarin kosong, server-nya ga butuh login.
 
-```json
-{
-  "mcpServers": {
-    "calendar-indonesia": {
-      "url": "https://husniadil.com/calendar/mcp"
-    }
-  }
-}
+**Claude Code** — cukup satu command:
+
+```bash
+claude mcp add --transport http indonesian-holidays https://husniadil.com/calendar/mcp
 ```
 
 **Cursor** — sama polanya, tinggal masukin URL yang sama ke MCP settings-nya.
+
+Dokumentasi lengkapnya, dalam bahasa Inggris, ada di [/calendar/mcp-server](/calendar/mcp-server/). Kalau URL MCP-nya kebuka langsung di browser, kamu juga bakal diarahin ke situ.
 
 **Mau coba-coba dulu tanpa setup client?** MCP Inspector-nya official dari Anthropic bisa langsung dipake dari terminal:
 
@@ -66,6 +64,8 @@ Itu doang. Restart client kamu, dan calendar Indonesia udah jadi salah satu tool
 
 > **Update 31 Agustus 2026.** Tool set-nya udah dirombak jadi delapan _primitive_ yang lebih enak dirangkai buat agentic workflow — bukan delapan tool yang masing-masing jawab satu pertanyaan, tapi delapan yang bisa dikomposisi. `calendar_info` dan `next_holiday` baru, `list_holidays` dihapus karena kerjaannya persis sama dengan `show_calendar`, `search_holidays` jadi `find_holidays` yang bisa difilter kategori dan rentang tanggal, dan `find_long_weekends` sekarang nerima rentang tanggal plus budget cuti. Daftar di bawah udah yang terbaru.
 
+> **Update 27 September 2026.** Setiap jawaban sekarang nyertain link PDF SKB 3 Menteri yang jadi dasarnya, termasuk SKB perubahannya. `count_workdays` sekarang ngasih dua angka dan `find_long_weekends` ngasih dua biaya cuti, karena cuti bersama itu libur atau masuk kerja tergantung kantornya. Tools yang punya MCP App sekarang ada empat. Detailnya ada di bawah.
+
 ## Delapan Hal yang Bisa Kamu Tanyain
 
 Daripada nge-dump schema JSON (boring, dan lo ga butuh itu buat pake-nya), ini delapan tools-nya dalam bentuk pertanyaan manusia:
@@ -76,18 +76,18 @@ Daripada nge-dump schema JSON (boring, dan lo ga butuh itu buat pake-nya), ini d
 - **"Kapan tanggal Idul Fitri?"** — `get_holiday`, satu hari libur spesifik. Tahunnya opsional; dikosongin berarti semua tahun sekalian jarak harinya dari sekarang.
 - **"Libur keagamaan antara Maret sampai April 2026 apa aja?"** — `find_holidays`, filter gabungan: kata kunci nama, kategori, dan rentang tanggal, dengan `limit` biar hasilnya ga kebablasan.
 - **"31 Desember 2026 itu hari apa — libur, weekend, atau hari kerja?"** — `check_date`, sekalian nama harinya dan berapa hari dari hari ini.
-- **"Long weekend setahun ke depan apa aja, yang cukup pake cuti 1 hari?"** — `find_long_weekends`, pake rentang tanggal plus budget cuti. Ini yang paling berguna buat planning liburan.
-- **"Kalau gue kerja dari 1 Januari sampai 31 Maret 2026, berapa hari kerja aktualnya?"** — `count_workdays`, ngitung hari kerja dalam range, udah exclude weekend dan libur nasional.
+- **"Long weekend setahun ke depan apa aja, yang cukup pake cuti 1 hari?"** — `find_long_weekends`, pake rentang tanggal plus budget cuti. Ini yang paling berguna buat planning liburan. Kalau long weekend-nya ngandelin cuti bersama, dia juga ngasih tau berapa cuti yang kepake seandainya kantor kamu tetap masuk.
+- **"Kalau gue kerja dari 1 Januari sampai 31 Maret 2026, berapa hari kerja aktualnya?"** — `count_workdays`, ngitung hari kerja dalam range, udah exclude weekend dan libur nasional. Buat cuti bersama dia ngasih dua angka: satu kalau kantor kamu ikut cuti bersama (dan jatah cuti tahunan kamu kepotong), satu lagi kalau kantor kamu tetap masuk. Soalnya ini beda-beda tiap perusahaan, dan satu angka doang bakal salah buat separuh orang.
 
 Semua delapan tools ini pake nama `snake_case` — bukan keputusan sembarangan, itu ekosistem norm-nya MCP (~90% tools yang ada pake pattern ini), dan konsistensi nama measurably ngaruh ke seberapa akurat model milih tools yang tepat.
 
 ## MCP Apps: Kalender yang Muncul di Chat
 
-Yang bikin ini beda dari sekadar tool call biasa yang balikin teks: tiga dari delapan tools di atas punya UI interaktif yang muncul langsung di dalam chat kamu, bukan cuma teks jawaban.
+Yang bikin ini beda dari sekadar tool call biasa yang balikin teks: empat dari delapan tools di atas punya UI interaktif yang muncul langsung di dalam chat kamu, bukan cuma teks jawaban.
 
 Pas kamu manggil `show_calendar`, hasilnya dirender sebagai **grid kalender** — persis kayak yang kamu lihat di halaman `/calendar/[year]` di website, tapi muncul inline di percakapan. Dan dia ngikut rentang yang kamu minta: satu bulan doang ya satu kartu, minta November 2026 sampai Januari 2027 ya tiga kartu yang nyeberang tahun, minta setahun ya dua belas.
 
-`next_holiday` numpang view yang sama, dan ini detail yang gampang kelewat: dia nampilin seluruh bulan tempat libur itu jatuh, bukan cuma tanggalnya. Nanya "kapan libur selanjutnya" di akhir Agustus 2026 bakal munculin kartu Desember dengan tanggal 24 **dan** 25 ketandain — karena percuma nunjukkin satu tanggal kalau tetangganya juga libur dan kamu ga dikasih tau.
+`get_holiday` dan `next_holiday` numpang view yang sama. `get_holiday` nampilin bulan-bulan tempat libur itu jatuh, dan `next_holiday` punya detail yang gampang kelewat: dia nampilin seluruh bulan tempat libur itu jatuh, bukan cuma tanggalnya. Nanya "kapan libur selanjutnya" di akhir Agustus 2026 bakal munculin kartu Desember dengan tanggal 24 **dan** 25 ketandain — karena percuma nunjukkin satu tanggal kalau tetangganya juga libur dan kamu ga dikasih tau.
 
 Pas kamu minta `find_long_weekends`, hasilnya dirender sebagai **timeline long weekend** yang nunjukkin setiap kesempatan long weekend beserta leave cost-nya — berapa hari cuti yang perlu diambil buat dapetin berapa hari libur berturut-turut.
 
@@ -95,7 +95,7 @@ Ini namanya MCP Apps, ekstensi dari protocol yang ngasih host (kayak Claude Desk
 
 ## Buka Website-nya Langsung? Tools yang Sama Juga Ada
 
-Kalau kamu browsing pake agentic browser (yang support WebMCP), buka aja `husniadil.com/calendar` langsung — delapan tools yang sama otomatis available buat agent kamu, tanpa perlu setup MCP server terpisah. Ini bukan implementasi kedua yang terpisah dan gampang drift — WebMCP dan remote MCP server sama-sama baca dari satu tool registry yang sama persis, dan ada parity test yang guard supaya dua surface ini ga pernah beda nama atau schema.
+Kalau kamu browsing pake agentic browser (yang support WebMCP), buka aja halaman mana pun di `husniadil.com`, ga harus halaman kalender — delapan tools yang sama otomatis available buat agent kamu, tanpa perlu setup MCP server terpisah. Ini bukan implementasi kedua yang terpisah dan gampang drift — WebMCP dan remote MCP server sama-sama baca dari satu tool registry yang sama persis, dan ada parity test yang guard supaya dua surface ini ga pernah beda nama atau schema.
 
 Sebelumnya WebMCP integration di site ini cuma punya 3 tools, dan ada bug spec-conformance yang saya temuin pas nyatuin dua surface ini: dia balikin plain object padahal spec WebMCP expect MCP result yang proper. Udah kefix sekarang, sekalian disamain ke tool set yang penuh.
 
@@ -119,7 +119,7 @@ Ini yang lumayan gotcha: SDK-nya sendiri **ga handle CORS**. `OPTIONS` request b
 
 ### Trailing-slash redirect yang diam-diam bunuh POST request
 
-Ini bug yang paling sneaky. Site ini punya middleware yang redirect trailing slash buat SEO canonicalization — misalnya `/calendar/` jadi `/calendar`. Masalahnya, middleware itu awalnya redirect **semua** method, termasuk POST. Dan MCP client ngirim request-nya lewat POST.
+Ini bug yang paling sneaky. Site ini punya middleware yang redirect trailing slash buat SEO canonicalization — misalnya `/calendar` jadi `/calendar/`. Masalahnya, middleware itu awalnya redirect **semua** method, termasuk POST. Dan MCP client ngirim request-nya lewat POST.
 
 Hasilnya: setiap request ke `/calendar/mcp` balik jadi `301 redirect`, dan MCP client — yang ga expect redirect di tengah-tengah protocol negotiation — langsung gagal connect. Diam-diam, tanpa error message yang jelas. Fix-nya simpel begitu ketemu: canonicalization sekarang cuma jalan buat `GET`/`HEAD`, method lain di-skip.
 
@@ -133,19 +133,26 @@ Ini bagian yang paling penting buat dipahami sebelum kamu percaya penuh sama jaw
 
 Dataset-nya nyakup **2020 sampai 2029**, tiga tier yang beda tingkat kepastiannya:
 
-- **2020–2026**: resmi, berdasarkan **SKB 3 Menteri** (Surat Keputusan Bersama) — dasar hukum yang sama dipake pemerintah buat nentuin tanggal merah dan cuti bersama.
-- **2027–2029**: **prediksi**, dihitung dari pola tahun-tahun sebelumnya. Ini bukan data kosong atau tebakan asal — ini prediksi yang website-nya sendiri udah tampilin lengkap dengan disclaimer "perkiraan/prediksi".
+- **2020–2027**: resmi, berdasarkan **SKB 3 Menteri** (Surat Keputusan Bersama) — dasar hukum yang sama dipake pemerintah buat nentuin tanggal merah dan cuti bersama. Kalau SKB-nya pernah direvisi, datanya ngikutin revisi terakhir.
+- **2028–2029**: **prediksi**, dihitung dari pola tahun-tahun sebelumnya. Ini bukan data kosong atau tebakan asal — ini prediksi yang website-nya sendiri udah tampilin lengkap dengan disclaimer "perkiraan/prediksi".
 - **2030 ke atas**: ga ada data sama sekali. Tools yang dipanggil buat tahun-tahun ini fallback ke ngitung weekend doang.
 
-Kenapa ini penting: setiap hasil dari tools ini bawa `coverage` block yang bilang tahun mana yang official, mana yang prediksi, mana yang ga ada datanya sama sekali. Dan setiap kali jawaban nyentuh tahun prediksi, teks jawabannya **selalu** nge-flag itu secara eksplisit — bukan cuma di data terstruktur yang bisa aja di-skip model, tapi di teks yang beneran dibaca. Jadi kalau kamu tanya soal long weekend 2028, Claude bakal jawab sambil bilang "ini prediksi, bukan keputusan resmi" — bukan nyajiin tebakan seolah-olah itu fakta.
+Kenapa ini penting: setiap hasil dari tools ini bawa `coverage` block yang bilang tahun mana yang official, mana yang prediksi, mana yang ga ada datanya sama sekali. Dan setiap kali jawaban nyentuh tahun prediksi, teks jawabannya **selalu** nge-flag itu secara eksplisit — bukan cuma di data terstruktur yang bisa aja di-skip model, tapi di teks yang beneran dibaca. Jadi kalau kamu tanya soal long weekend 2028, Claude bakal jawab sambil bilang "ini prediksi, bukan keputusan resmi" — bukan nyajiin tebakan seolah-olah itu fakta. Buat tahun yang resmi, jawabannya juga nyertain link PDF SKB-nya, jadi kalau kamu nanya "sumbernya dari mana?", Claude bisa langsung kasih dokumen resminya.
 
-Satu hal lagi yang perlu diinget: SKB buat satu tahun biasanya baru terbit sekitar **kuartal 3 tahun sebelumnya**. Jadi kalau kamu nanya soal 2027 sekarang, jawabannya emang masih prediksi — bukan karena server-nya kurang update, tapi karena keputusan resminya sendiri emang belum ada.
+Satu hal lagi yang perlu diinget: SKB buat satu tahun biasanya baru terbit sekitar **kuartal 3 tahun sebelumnya**. SKB 2027 misalnya ditandatangani 15 September 2026. Jadi kalau kamu nanya soal 2028 sekarang, jawabannya emang masih prediksi — bukan karena server-nya kurang update, tapi karena keputusan resminya sendiri emang belum ada.
+
+### SKB juga bisa direvisi
+
+SKB itu bukan dokumen sekali jadi. SKB 2020 diubah empat kali gara-gara COVID, 2021, 2022, dan 2023 masing-masing dua kali, 2024 dan 2025 sekali. Revisinya bisa geser tanggal libur, nambah cuti bersama, atau malah motong cuti bersama.
+
+Nah, pas ngecek ulang semua SKB beserta revisinya, saya nemu data di sini ternyata ada yang ketinggalan. Data 2021 masih pake 7 hari cuti bersama, padahal udah dipangkas tinggal satu (12 Mei), dan Tahun Baru Islam sama Maulid-nya udah digeser sehari. Idul Adha 2022 juga masih tanggal 9 Juli, padahal SKB perubahan kedua mindahin ke 10 Juli. Sekarang udah dibenerin, dan datanya selalu ngikutin SKB perubahan terakhir. Di halaman kalender, tombol SKB PDF sekarang juga nampilin semua versinya, dari SKB awal sampai perubahan terakhir.
 
 ## Kesimpulan
 
 - Endpoint-nya satu: `https://husniadil.com/calendar/mcp`, gratis, no auth.
 - Delapan tools yang sama persis dipake dua tempat: remote MCP server dan WebMCP di website, dijamin ga drift lewat parity test.
-- Tiga di antaranya punya MCP App, jadi jawabannya bukan cuma teks — ada grid kalender dan timeline long weekend yang muncul langsung di chat.
-- Data-nya jujur soal ketidakpastian: 2020–2026 resmi, 2027–2029 prediksi yang selalu di-flag, 2030+ ga ada data.
+- Empat di antaranya punya MCP App, jadi jawabannya bukan cuma teks — ada grid kalender dan timeline long weekend yang muncul langsung di chat.
+- Data-nya jujur soal ketidakpastian: 2020–2027 resmi dan ngikutin SKB perubahan terakhir, lengkap sama link PDF-nya, 2028–2029 prediksi yang selalu di-flag, 2030+ ga ada data.
+- Dokumentasi lengkapnya dalam bahasa Inggris ada di [/calendar/mcp-server](/calendar/mcp-server/).
 
 Yang paling saya suka dari proyek ini: ini bukan fitur baru yang berdiri sendiri, tapi cara baru buat ngakses fitur yang udah ada dan udah viral organik itu. Data-nya sama, algoritma-nya sama, cuma permukaannya yang nambah. Kalau kamu udah connect calendar ini ke Claude atau Cursor kamu, coba tanyain soal long weekend berikutnya — dan kasih tau saya kalau ada yang aneh dari jawabannya.
