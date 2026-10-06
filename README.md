@@ -5,7 +5,7 @@ Technical Lead Manager at [Sayurbox](https://sayurbox.com), Yogyakarta. Before t
 ## Experiments
 
 - **Agamemnon** _(private)_: your coding agents on the phone in your pocket, one web page over the agents running on every paired machine.
-- **[Olympus](https://github.com/husniadil/olympus)**: a terminal you can drive from code, as a Go package, a CLI and an MCP server.
+- **[Olympus](https://husniadil.com/blog/olympus-terminal-yang-bisa-disetir-dari-code/)**: a terminal you can drive from code, as a Go package, a CLI and an MCP server.
 - **[proxenos](https://github.com/husniadil/proxenos)**: runs Claude Code on OpenAI models through a ChatGPT subscription, without modifying Claude Code.
 - **[Agent Profiles](https://github.com/husniadil/agent-profiles)**: several accounts of a coding-agent desktop app at once, one profile each.
 - **[husniadil/skills](https://github.com/husniadil/skills)**: a Claude plugin marketplace with skills, workflow commands and effort-pinned subagents for Claude Code, Codex and pi.
