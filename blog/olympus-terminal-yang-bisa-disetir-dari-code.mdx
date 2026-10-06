@@ -33,7 +33,7 @@ Tagline-nya: **a terminal you can drive from code**.
 
 Olympus bikin, nyetir, ngamatin, dan matiin terminal session beneran, yang tetap hidup walaupun laptop kamu ditutup. Dia ga bawa multiplexer sendiri. Dia nyetir multiplexer yang udah kamu punya: [zmx](https://github.com/neurosnap/zmx) (default), [tmux](https://github.com/tmux/tmux), [meja](https://github.com/garindra/meja), atau [herdr](https://herdr.dev). Semua itu di-expose lewat tiga pintu yang setara: **Go package**, **CLI**, dan **stdio MCP server**.
 
-<img src="https://ik.imagekit.io/2gfia2nrp/blog/olympus-terminal-yang-bisa-disetir-dari-code/olympus-tiga-pintu.png" alt="Diagram Olympus: tiga pintu (Go package, CLI, MCP server) dengan satu vocabulary, di atas empat multiplexer (zmx, tmux, meja, herdr)" class="rounded-lg shadow-md" />
+<img src="https://ik.imagekit.io/2gfia2nrp/blog/olympus-terminal-yang-bisa-disetir-dari-code/olympus-tiga-pintu-v2.png" alt="Diagram Olympus: tiga pintu (Go package, CLI, MCP server) dengan satu vocabulary, di atas empat multiplexer (zmx, tmux, meja, herdr)" width="600" class="mx-auto rounded-lg shadow-md" />
 
 Contoh paling dasar dari CLI:
 
@@ -154,7 +154,7 @@ Contoh lain: pane herdr selalu jalanin shell dari config herdr sendiri, jadi ga 
 
 Makanya `olympus doctor` jadi command pertama yang harus kamu jalanin. Dia ngasih tau backend mana yang ke-install, mana yang jawab dan kenapa, session-nya disimpan di mana, dan apa aja yang bisa dilakuin tiap backend. Dan dia ga pernah gagal. Kalau ga ada backend sama sekali, ngejelasin itu justru tugasnya.
 
-<img src="https://ik.imagekit.io/2gfia2nrp/blog/olympus-terminal-yang-bisa-disetir-dari-code/olympus-doctor.png" alt="Output olympus doctor dengan zmx, tmux, meja, dan herdr terpasang, beserta kemampuan tiap backend" class="rounded-lg shadow-md" />
+<img src="https://ik.imagekit.io/2gfia2nrp/blog/olympus-terminal-yang-bisa-disetir-dari-code/olympus-doctor-v2.png" alt="Bagian atas output olympus doctor dengan zmx, tmux, meja, dan herdr terpasang, beserta kemampuan tiap backend" width="520" class="mx-auto rounded-lg shadow-md" />
 
 ## Tiga Pintu, Satu Vocabulary
 
