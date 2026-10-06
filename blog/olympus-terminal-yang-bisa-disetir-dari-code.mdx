@@ -1,0 +1,300 @@
+---
+title: "Olympus: Terminal yang Bisa Disetir dari Code"
+date: "2026-10-06"
+description: "Olympus bikin terminal session beneran bisa dikendalikan dari Go, CLI, atau MCP, di atas zmx, tmux, meja, dan herdr. Bahas kenapa 'ketik teks lalu tekan Enter' ternyata salah dalam banyak cara, dan aturan-aturan yang lahir dari situ."
+tags:
+  [
+    "Olympus",
+    "Golang",
+    "MCP",
+    "AI Agents",
+    "Claude Code",
+    "Developer Tools",
+    "Terminal",
+    "tmux",
+    "Deep Dive",
+  ]
+status: "draft"
+---
+
+## Enter yang Nge-approve Command
+
+Gini ceritanya. Bayangin kamu punya dua coding agent. Agent A mau ngirim pesan ke agent B yang jalan di pane sebelah: "Tolong cek test yang gagal di `auth/`." Caranya kelihatan simpel. Ketik teksnya ke pane B, pastiin teksnya muncul di layar, terus tekan Enter.
+
+Sekarang bayangin pas pesan itu dikirim, agent B lagi nampilin permission prompt yang nanya boleh jalanin satu command atau engga. Teks yang sama kebetulan udah ada di layar, misalnya di bagian percakapan sebelumnya. Pengecekan "teksnya udah muncul belum?" langsung lolos. Enter-nya ditekan. Dan Enter itu ga ngirim pesan apa-apa. Enter itu **nge-approve command** yang lagi ditanyain ke kamu.
+
+Ini kejadian beneran di Olympus versi lama, diukur terhadap Claude Code 2.1.273 di default permission mode, dan dicatat di spec-nya. Kalau yang muncul pertanyaan dengan dua opsi, Enter yang sama milih opsi pertama. Dua-duanya keputusan yang harusnya diambil manusia, diambil sama program yang niatnya cuma ngirim pesan.
+
+Sekarang Olympus nolak ngirim teks ke agent yang lagi nunggu jawaban orang: exit code 8, `AGENT_BLOCKED`, dan ga ada satu karakter pun yang diketik. Tapi aturan itu cuma satu dari puluhan aturan sejenis. Post ini cerita soal Olympus, dan kenapa "nyetir terminal dari code" ternyata jauh lebih ribet dari kelihatannya.
+
+## Jadi, Olympus Itu Apa?
+
+Tagline-nya: **a terminal you can drive from code**.
+
+Olympus bikin, nyetir, ngamatin, dan matiin terminal session beneran, yang tetap hidup walaupun laptop kamu ditutup. Dia ga bawa multiplexer sendiri. Dia nyetir multiplexer yang udah kamu punya: [zmx](https://github.com/neurosnap/zmx) (default), [tmux](https://github.com/tmux/tmux), [meja](https://github.com/garindra/meja), atau [herdr](https://herdr.dev). Semua itu di-expose lewat tiga pintu yang setara: **Go package**, **CLI**, dan **stdio MCP server**.
+
+{/* TODO: Ganti URL, diagram tiga pintu (Go package, CLI, MCP server) di atas empat backend (zmx, tmux, meja, herdr) */}
+
+<img src="https://picsum.photos/800/450" alt="Diagram Olympus: tiga pintu (Go package, CLI, MCP server) di atas empat multiplexer" class="rounded-lg shadow-md" />
+
+Contoh paling dasar dari CLI:
+
+```bash
+olympus doctor
+olympus start build --dir /repo
+olympus send build 'make test'
+olympus wait build 'ok|FAIL'
+olympus screen build
+olympus stop build
+```
+
+`send` ngetik teksnya, mastiin teksnya beneran nyampe di layar, baru submit. `wait` nunggu sampai output-nya nyebut sesuatu. `screen` baca layarnya. Nama `build` bebas, kamu yang nentuin.
+
+Use case utamanya jelas: **coding agents**. Claude Code, Codex, dan teman-temannya hidup di terminal. Kalau kamu mau satu program ngatur banyak agent (nyuruh, nungguin, baca hasilnya, nyerahin ke manusia kalau perlu), kamu butuh cara yang bisa dipercaya buat ngendaliin terminal dari code. Olympus juga bisa nemuin agent di pane:
+
+```bash
+olympus agents
+```
+
+Hasilnya daftar agent yang jalan di pane mana, plus statusnya: `working`, `idle`, `blocked`, atau `unknown`.
+
+## Kenapa Ga `tmux send-keys` Aja?
+
+Pertanyaan yang wajar. tmux udah punya `send-keys` dan `capture-pane`. Tinggal dibungkus, selesai kan? 🤔
+
+The thing is, spec Olympus (`docs/terminal-behavior.md`) panjangnya lebih dari 5.000 baris, dan kalimat pembukanya kayak gini:
+
+> Each rule exists because the obvious implementation is wrong in a way that stays invisible until it costs a bug.
+
+Setiap aturan di situ ada karena implementasi yang paling kelihatan masuk akal ternyata salah, dan salahnya ga kelihatan sampai bikin bug. Ini beberapa yang paling saya suka.
+
+### 1. **Enter yang Jadi Newline**
+
+Kirim `make test` plus `\r` dalam satu write. Harusnya ke-submit kan?
+
+Di shell biasa, iya. Tapi REPL yang dibangun pakai Ink (Claude Code salah satunya) ngelihat satu write berisi teks plus `\r` sebagai **paste**. `\r`-nya jadi newline literal di dalam input box, dan ga ada yang ke-submit. Teksnya nongkrong di situ, nunggu.
+
+Makanya aturan Olympus: terminator buat submit harus write terpisah, isinya cuma `\r`, setelah jeda 150ms. Tiap backend punya caranya sendiri buat mastiin Enter itu kebaca sebagai keypress. tmux nge-chain dua `send-keys` dalam satu invocation. zmx nulis teks, nunggu 150ms, terus nulis `\r` sendirian. herdr pakai satu request, dan server-nya sendiri yang nge-frame teks sebagai paste dan Enter sebagai keypress.
+
+Satu lagi yang kelihatannya sepele: kalau Enter gagal setelah teks udah diketik, Olympus retry Enter-nya **sekali**. Teks yang belum ke-submit itu bahaya, karena injection berikutnya bakal nyambung ke teks itu dan dua-duanya rusak. Pengecualiannya kalau backend udah nerima Enter-nya terus kehilangan client yang bawa Enter itu. Di situ Enter-nya mungkin udah nyampe, dan command yang ke-submit dua kali ga bisa dibatalin. Jadi yang ini ga di-retry.
+
+### 2. **Exit Code dari Layar**
+
+`olympus run` jalanin command di session dan ngasih tau exit code-nya. Masalahnya, satu-satunya yang bisa dibaca dari terminal ya layarnya. Jadi Olympus ngirim baris kayak gini:
+
+```bash
+echo <START>; <cmd>; echo "<DONE>_$?_"
+```
+
+terus polling layar sampai marker DONE muncul. Kelihatannya gampang, tapi ada dua jebakan.
+
+Jebakan pertama: baris yang dikirim itu ke-echo ke layar sebelum shell jalanin. Jadi marker START dan DONE **udah ada di layar** sebelum command-nya mulai. Quoting ga ngebantu, karena quoting cuma ngatur parsing shell, sedangkan yang dirender terminal tetap teks yang diketik. Yang ngebedain echo dari hasil asli itu expansion: echo-nya nampilin `$?` apa adanya, sedangkan marker DONE yang asli diikuti angka. Makanya DONE baru dianggap valid kalau diikuti 1 sampai 3 digit.
+
+Jebakan kedua: kenapa ada `_` di belakang `$?`? Karena parser-nya ngebuang newline dulu biar tahan terhadap line wrapping. Tanpa delimiter itu, prompt kayak `12:34 $` di baris berikutnya bakal nyambung ke angkanya. `_0` ketemu `12:34` jadi `_012`, dan exit code-nya kebaca **12**, padahal aslinya 0. 😅
+
+Identifier di marker juga harus unik lintas process, goroutine, dan waktu: process id, counter per process, plus random bytes.
+
+### 3. **Kirim, Terus Pastiin Nyampe**
+
+`send` di Olympus itu verified delivery. Kirim teksnya, terus polling layar sampai teks itu kelihatan. Kalau ga kelihatan dalam satu budget waktu, kirim ulang sekali, terus tunggu budget kedua yang independen. Yang dijaga di sini delivery pertama yang ke-drop atau ke-gabung.
+
+Pencocokannya toleran sama UI: lowercase, buang semua karakter yang bukan huruf atau angka (tanda baca, spasi, box-drawing, glyph prompt), terus dicocokin per baris dan per pasangan baris yang berdampingan biar tahan line wrap.
+
+Kedengerannya aman. Sampai ketemu program full-screen.
+
+Rilis 0.35.0 (5 Oktober 2026) benerin satu kasus yang lucu sekaligus serem. Kirim `q` ke `less`. `less` langsung quit, jadi `q`-nya ga pernah kelihatan di layar. Olympus nganggep delivery pertama gagal, terus kirim ulang. `q` kedua mendarat di prompt shell, **kelihatan**, dan `send` lapor sukses. Hasil akhirnya ada `q` nyasar di command line kamu.
+
+Program full-screen bisa ngerespon tombol tanpa nampilin tombol itu. Jadi sekarang Olympus baca flag alternate screen **sebelum** ngetik. Kalau pane-nya lagi di alternate screen, miss pertama langsung gagal tanpa resend, dan error-nya bilang teksnya ga dikirim ulang. Kenapa dibaca sebelum ngetik? Karena setelah ngetik, program yang nerima teksnya mungkin udah ga ada.
+
+### 4. **Agent yang Lagi Nunggu Orang**
+
+Balik ke cerita pembuka. Sebelum ngetik apa pun, `send` sekarang baca layar target. Kalau di pane itu ada agent yang Olympus kenal, dan layarnya kebaca `blocked` (permission prompt, pertanyaan pilihan), `send` gagal dengan `AGENT_BLOCKED` dan ga ngetik apa-apa.
+
+Pembacaan yang sama diulang di setiap capture selama nungguin echo. Kalau prompt-nya muncul di tengah jalan, delivery langsung berhenti tanpa resend dan tanpa Enter. Error-nya ditandai `typed`, biar caller tau ada teks yang udah masuk ke input box dan ga ngetik ulang setelah prompt-nya ketutup.
+
+Kenapa baca layar langsung, dan ga pakai status agent dari listing? Karena status itu telat. Di herdr, status native-nya baru jadi `blocked` sekitar 1,2 detik setelah prompt-nya muncul di layar. Kirim dalam jeda itu, dan Enter-nya tetap nge-approve.
+
+Buat agent yang input-nya digambar sebagai box (kayak Claude Code), Olympus juga ngecek box-nya ada atau engga. Kalau box-nya ga ada, berarti ada yang lagi kebuka di atasnya, misalnya rewind list, model picker, atau transcript viewer. Enter di situ bakal ngejawab apa pun yang kebuka itu, jadi ditolak juga.
+
+Detail favorit saya: kadang box-nya **digambar salah**. Di Claude Code 2.1.274 pernah kejadian input line-nya kegambar satu baris terlalu rendah dan nimpa garis bawah box-nya. Box-nya kebaca hilang, padahal teksnya ada di input. Kirim signal atau focus event ga bikin dia redraw, tapi size change bikin dia redraw. Makanya di herdr yang support, Olympus minta redraw dengan ngecilin PTY pane-nya satu baris sebentar terus balikin lagi, nunggu sampai satu detik, baru mutusin.
+
+Terus gimana cara jawab prompt-nya? Pakai `press`, dengan tombol yang dipilih caller sendiri. Jawaban ke prompt itu keputusan, dan Olympus ga mau keputusan itu jadi efek samping dari ngirim teks.
+
+### 5. **Environment yang Bocor**
+
+Setiap session yang Olympus bikin di-spawn dengan environment yang dibersihin. Tiga contoh kenapa:
+
+- **`TERM` dipaksa jadi `xterm-256color`.** Kalau host-nya jalan di dalam tmux atau screen, `TERM`-nya keturunan screen-family. zsh yang ngelihat itu bakal ngirim judul window pakai sequence khas screen, dan consumer yang ga ngerti sequence itu nampilinnya sebagai teks. Hasilnya, setiap nama command bocor ke output pane.
+- **`LANG` di-default ke `en_US.UTF-8`.** Process yang di-start launchd ga punya `LANG` sama sekali, jadi semua byte non-ASCII rusak.
+- **Variabel identitas multiplexer dibuang.** `ZMX_SESSION` yang ke-inherit itu yang paling parah. Dengan variabel itu ke-set, `zmx attach <name>` ga bikin session `<name>`. Dia malah narik client utama dari session yang lagi kamu pakai pindah ke `<name>`. Jalanin Olympus dari dalam zmx tanpa aturan ini, dan terminal kamu sendiri yang ketarik.
+
+### 6. **`tmux.conf` Kamu Tetap Kebawa**
+
+Olympus pakai socket tmux sendiri, jadi session-nya ga muncul di `tmux ls` kamu. Tapi socket yang private ga otomatis bikin konfigurasinya private. tmux baca `tmux.conf` kamu pas server-nya boot, socket mana pun yang dipakai.
+
+Sebagian besar itu malah bagus. Kalau kamu attach ke session yang lagi disetir Olympus, kamu tetap dapet prefix, keybinding, dan theme kamu sendiri. Masalahnya ada di dua option yang jadi sandaran kebenaran Olympus: `default-command` dan `history-limit`.
+
+Ambil `default-command`. Kalau config kamu bikin pane-nya jalan di `csh`, marker `"<DONE>_$?_"` tadi rusak. csh baca `$?_` sebagai "variabel `_` ke-set atau engga", jadi exit code aslinya diganti `1` dan delimiter-nya hilang. Akibatnya command yang gagal dengan exit code 3 bisa dilaporin sukses, atau marker-nya ga pernah ke-parse dan `run` lapor timeout buat command yang sebenernya udah selesai.
+
+Jadi Olympus nge-pin dua option itu, tapi **cuma di server yang dia start sendiri**. Server tmux yang udah jalan dibiarin apa adanya, karena `set-option -g` bakal ngubah semua session lain di server itu juga. Server yang di-start Olympus ditandain `@olympus_managed`, dan `olympus doctor` nyebutin option apa aja yang di-pin beserta nilainya. Tool yang diam-diam nimpa satu baris config orang bikin pertanyaan "kenapa config saya ga kepakai?" jadi ga bisa dijawab.
+
+## Empat Backend, Ga Ada yang Sama
+
+Olympus milih backend pertama yang ke-install, urutannya zmx, tmux, meja, herdr. Bisa juga dipilih sendiri pakai `--backend` atau `OLYMPUS_BACKEND`. Masalahnya, keempat backend ini ga setara:
+
+|                    | zmx | tmux | meja | herdr |
+| ------------------ | --- | ---- | ---- | ----- |
+| Views              | no  | yes  | no   | no    |
+| Corpse on exit     | no  | yes  | no   | no    |
+| Server environment | no  | yes  | no   | no    |
+| Control keys       | no  | yes  | yes  | yes   |
+| Start on a command | yes | yes  | yes  | no    |
+
+Prinsip Olympus di sini: **bilang apa yang ga bisa dilakuin**. zmx ga bisa ngirim control key dengan reliable, jadi editor di zmx bisa diketik-in tapi ga bisa di-save atau di-exit. Ini dilaporin sebagai capability `control_keys`, jadi bisa dicek sebelum kamu nyoba. Operasi yang jalan dalam mode degraded juga ngasih warning, ga gagal diam-diam.
+
+Contoh lain: pane herdr selalu jalanin shell dari config herdr sendiri, jadi ga ada tempat buat nitip command waktu bikin session. Jalan pintasnya kelihatan jelas: ketik aja command-nya ke shell. Olympus nolak itu. `start <name> -- <command>` di herdr ditolak sebelum ada yang diketik, karena argv yang diketik ke shell bakal nongol di output session, dan setiap metacharacter shell di argumennya diinterpretasi ulang sama shell yang harusnya ga pernah lihat argv itu.
+
+Makanya `olympus doctor` jadi command pertama yang harus kamu jalanin. Dia ngasih tau backend mana yang ke-install, mana yang jawab dan kenapa, session-nya disimpan di mana, dan apa aja yang bisa dilakuin tiap backend. Dan dia ga pernah gagal. Kalau ga ada backend sama sekali, ngejelasin itu justru tugasnya.
+
+{/* TODO: Ganti URL, screenshot output `olympus doctor` di terminal */}
+
+<img src="https://picsum.photos/800/500" alt="Output olympus doctor yang nunjukin backend yang terpasang dan kemampuannya" class="rounded-lg shadow-md" />
+
+## Tiga Pintu, Satu Vocabulary
+
+Setiap operasi punya satu nama, satu set option, dan satu bentuk hasil. Verb CLI, method Go, dan tool MCP itu tiga ejaan dari hal yang sama:
+
+| Operasi                               | CLI      | MCP tool        | Go         |
+| ------------------------------------- | -------- | --------------- | ---------- |
+| Bikin atau pakai ulang session        | `start`  | `start_session` | `Session`  |
+| Kirim teks, dikonfirmasi, lalu submit | `send`   | `send_text`     | `Send`     |
+| Tunggu pattern                        | `wait`   | `wait_for`      | `WaitFor`  |
+| Jalanin command                       | `run`    | `run_command`   | `Exec`     |
+| Daftar agent di pane                  | `agents` | `list_agents`   | `Agents`   |
+| Diagnosa environment                  | `doctor` | `doctor`        | `Diagnose` |
+
+Total ada 34 tool MCP, dan tabel lengkapnya ada di `docs/api.md`. Ada test yang mastiin tabel di dokumen itu sama persis dengan command tree CLI dan daftar tool yang beneran di-serve, jadi dokumennya ga bisa diam-diam basi.
+
+Dari Go, kelihatannya kayak gini:
+
+```go
+ol, err := olympus.Open()
+defer ol.Close()
+
+s, err := ol.Session(ctx, "build", olympus.In("/repo"))
+
+res, err := s.Exec(ctx, "go test ./...")
+fmt.Println(res.ExitCode, res.Output)
+
+job, err := s.Start(ctx, "make deploy") // detached
+status, err := job.Poll(ctx)
+```
+
+`Session` itu create-or-reuse, jadi ga perlu langkah "udah ada belum ya?" sebelumnya.
+
+Dari MCP client, cukup:
+
+```json
+{
+  "mcpServers": {
+    "olympus": { "command": "olympus", "args": ["mcp"] }
+  }
+}
+```
+
+MCP server-nya stdio only, target revision `2026-07-28`, dan tetap jawab client yang masih pakai handshake `initialize` yang lama. Sama kayak [MCP server calendar](/blog/kalender-libur-nasional-sekarang-bisa-diajak-ngobrol) yang pernah saya tulis, dia ngerti dua era protocol sekaligus.
+
+Buat yang nge-parse output, tambahin `--json` ke verb apa aja dan kamu dapet envelope yang stabil. Bentuk JSON, error code, nama verb dan flag, serta nama tool dan parameternya semver-bound: cuma boleh nambah, ga pernah diubah artinya atau dihapus. Exit code-nya juga punya arti yang jelas:
+
+| Code | Artinya                                                             |
+| ---- | ------------------------------------------------------------------- |
+| 0    | Sukses                                                              |
+| 1    | Ada yang ga terduga, retry ga bakal ngebantu                        |
+| 2    | Usage, benerin satu argumen udah cukup                              |
+| 3    | Session atau pane-nya ga ada                                        |
+| 4    | Backend-nya ga bisa dihubungi                                       |
+| 5    | Timeout                                                             |
+| 6    | Session-nya lagi dipegang yang lain                                 |
+| 7    | Backend-nya ga punya konsep itu                                     |
+| 8    | `send` ditolak karena agent-nya nunggu orang, ga ada yang ke-submit |
+
+Satu detail yang saya suka: command yang gagal itu ga dianggap error Olympus. `olympus run` ngelaporin exit code command-nya sendiri. Pakai `--json`, exit code-nya ada di `data.exit_code` dan process-nya exit 0. Tanpa `--json`, process-nya exit dengan status command itu, jadi tetap enak dipakai di pipeline.
+
+## Stateless, dan Itu Disengaja
+
+`olympus run --detach` ngirim command sekali, terus balikin id. Id itu bisa kamu polling berkali-kali, dan jawabannya `pending`, `completed`, atau `died`.
+
+Yang menarik, Olympus ga nyimpen apa-apa. Ga ada registry, ga ada tabel command yang pending, ga ada file di disk. Id-nya ditanam di marker sentinel tadi, dan polling cukup nyari ulang pasangan marker itu di scrollback. **Scrollback-nya itu sendiri yang jadi state.**
+
+Konsekuensinya ditulis jelas di spec, di bawah judul yang saya suka banget: _Consequences that MUST NOT be "fixed"_.
+
+- Id yang ga pernah ada dan command yang masih jalan ga bisa dibedain. Dua-duanya kebaca `pending` sampai timeout dari caller.
+- "Selesai terus session-nya dibunuh" dan "mati di tengah command" juga ga bisa dibedain. Kalau marker DONE hilang bareng scrollback-nya, `died` itu satu-satunya jawaban yang jujur.
+
+Exit code di hasil polling juga cuma diisi kalau statusnya `completed`. Jadi ga pernah ada angka `0` palsu yang kebaca sebagai sukses sama consumer yang kurang hati-hati.
+
+Ini juga alasan Olympus ga punya daemon, ga punya HTTP server, dan MCP-nya cuma stdio. Begitu ada state yang persistent, ada satu lagi hal yang bisa basi, rusak, atau beda dari kenyataan.
+
+## Cara Saya Ngerjainnya
+
+Beberapa aturan main project ini yang menurut saya bikin dia bisa dipercaya.
+
+### 1. **Spec Dulu, Baru Code**
+
+`docs/terminal-behavior.md` itu spec normatif. Setiap aturan ditulis pakai MUST atau MUST NOT, plus bagian _Why_ yang nyeritain kegagalan yang bikin aturan itu ada, sering lengkap dengan versi program yang dipakai buat ngukur. Kalau implementasi ngebuktiin satu aturan salah, spec-nya diubah di commit yang sama. Spec yang drift dari code itu lebih bahaya daripada ga punya spec, karena isinya masih dipercaya.
+
+### 2. **Conformance Suite yang Di-export**
+
+`backend/backendtest` itu conformance suite yang dipakai keempat backend bawaan. Package-nya di-export, jadi backend pihak ketiga bisa ngebuktiin dirinya pakai suite yang sama persis.
+
+### 3. **Test Ga Boleh Nyentuh Session Kamu**
+
+Kedengerannya basic, tapi detailnya beda-beda per backend, dan namespace nama session aja ga cukup:
+
+- **tmux** butuh socket di direktori milik test, karena server yang dibunuh ga ngehapus socket-nya. Socket dengan nama tetap bakal numpuk di sebelah socket kamu.
+- **meja** harus pakai socket path, ga boleh nama profile, karena meja nyimpen file recovery di sebelah socket-nya. Session test bisa muncul lagi di store kamu pas restore.
+- **herdr** butuh socket, config, dan state directory yang private. Socket private aja masih nimpa `~/.config/herdr/session.json` kamu.
+
+### 4. **Budget Tiga Library**
+
+Dependency langsungnya cuma tiga: cobra, creack/pty, dan official MCP go-sdk. Nambah atau ganti salah satunya itu keputusan yang dicatat di commit yang sama.
+
+### 5. **Rilis Kecil, Sering**
+
+0.1.0 rilis 17 Agustus 2026, dan 0.35.0 rilis 5 Oktober 2026. Totalnya 60 rilis di GitHub dalam tujuh minggu. Code-nya sekitar 24 ribu baris Go, dan file test-nya sekitar 25 ribu baris.
+
+Banyak rilis itu isinya bug yang ketemu pas dipakai beneran. Changelog-nya sengaja ditulis sebagai catatan kegagalan: apa yang rusak, gimana ngukurnya, dan kenapa fix-nya bentuknya begitu. Contoh dari 0.1.0: tmux 3.5a balikin listing kosong, karena dia nge-escape field separator jadi empat karakter `\037`, sementara tmux 3.7b ngirim byte-nya apa adanya. Versi yang masih di dalam range yang didukung, rusak total cuma gara-gara satu byte.
+
+## Siapa yang Pakai Olympus?
+
+Olympus sengaja dibikin netral. Ga ada nama exported, file, atau package yang nyebut consumer, produk, atau vendor tertentu. Namanya ngegambarin terminal, ga ngegambarin siapa yang nyetir. Tapi tetap ada yang nyetir, dan sejauh ini dua-duanya project saya sendiri:
+
+- **Agamemnon** (masih private): satu halaman web buat coding agents di semua mesin saya, yang enak dibuka dari HP. Intinya web terminal di atas session multiplexer beneran, dan semuanya disetir lewat CLI `olympus`. Binary-nya bawa Olympus sendiri, jadi ga perlu install terpisah.
+- **[MCP Gateway](/blog/mcp-gateway-http-gateway-untuk-model-context-protocol)**: image Docker-nya bawa `olympus` sebagai contoh stdio MCP server. Artinya Olympus bisa dipanggil dari MCP client yang cuma ngerti HTTP, termasuk Claude mobile.
+
+## Coba Sendiri
+
+Butuh macOS atau Linux, Go 1.26.5 ke atas (atau ambil archive dari GitHub Releases, ga perlu Go), dan minimal satu multiplexer.
+
+```bash
+go install github.com/husniadil/olympus/cmd/olympus@latest
+olympus doctor
+olympus start build
+olympus run build 'echo hello from a real terminal'
+olympus screen build
+olympus stop build
+```
+
+Kalau kamu pakai Claude Code, copy direktori `skills/olympus/` dari repo-nya ke `~/.claude/skills/olympus/`. Skill itu ngajarin agent verb mana yang cocok buat situasi apa, plus jebakan-jebakannya. Salah satu yang paling sering kena: `wait` nyocokin per baris, jadi pattern kayak `'\$\s*$'` cuma cocok sama prompt kamu sendiri dan gagal di zsh, fish, atau prompt yang di-theme. Cocokin apa yang di-print command-nya, jangan prompt-nya.
+
+Repo-nya publik di [github.com/husniadil/olympus](https://github.com/husniadil/olympus), lisensinya MIT.
+
+## Kesimpulan
+
+- Olympus bikin terminal session beneran bisa disetir dari Go, CLI, atau MCP, di atas zmx, tmux, meja, atau herdr.
+- "Ketik teks, tekan Enter, baca layar" itu salah dalam banyak cara yang ga kelihatan: Enter yang jadi newline, exit code 0 yang kebaca 12, `q` yang nyasar ke shell, dan Enter yang nge-approve permission prompt.
+- Setiap aturan yang lahir dari kegagalan itu ditulis di spec, lengkap dengan alasannya.
+- `doctor` dan `capabilities` bilang terus terang apa yang ga bisa dilakuin backend kamu, dan operasi yang degraded selalu ngasih warning.
+- Stateless itu disengaja. Scrollback-nya yang jadi state.
+
+Yang paling saya pelajari dari project ini: hal yang kelihatan paling simpel justru yang paling sering salah diam-diam. Kalau kamu lagi bikin sesuatu yang ngatur coding agent, coba jalanin `olympus doctor` dulu, dan kasih tau saya kalau ketemu kasus yang belum ada di spec-nya 🚀
