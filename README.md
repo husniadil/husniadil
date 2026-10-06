@@ -10,7 +10,6 @@ Technical Lead Manager at [Sayurbox](https://sayurbox.com), Yogyakarta. Before t
 - **[husniadil/skills](https://github.com/husniadil/skills)**: a Claude plugin marketplace with skills, workflow commands and effort-pinned subagents for Claude Code, Codex and pi.
 - **MCP Gateway** _(private, [write-up](https://husniadil.com/blog/mcp-gateway-http-gateway-untuk-model-context-protocol))_: puts stdio, HTTP and SSE MCP servers behind OAuth 2.1.
 - **[herdr-swipe](https://github.com/husniadil/herdr-swipe)**: trackpad gestures for Herdr.
-- **[Zenith Oh-My-Zsh Theme](https://github.com/husniadil/zenith-oh-my-zsh-theme)**: a minimal Zsh theme with a framed two-line prompt.
 
 ## On the site
 
