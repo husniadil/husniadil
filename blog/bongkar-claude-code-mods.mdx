@@ -1,0 +1,1021 @@
+---
+title: "Bongkar Claude Code Mods: Hook, Event, dan 15 Bagian Layar yang Bisa Diganti"
+date: "2026-10-08"
+publishedTime: "2026-10-08T14:55:00Z"
+description: "Panduan dari nol buat mod Claude Code: rantai hook, kapan tiap event dipanggil, bagian layar yang bisa digambar ulang, remote $, delapan contoh kasus, dan daftar lengkap 46 event."
+tags:
+  [
+    "Claude Code",
+    "Claude Code Mods",
+    "AI Agents",
+    "TypeScript",
+    "Developer Tools",
+    "Deep Dive",
+  ]
+status: "published"
+---
+
+## Mod Itu Apa?
+
+Mod itu satu file TypeScript yang nyelip di tengah kerjaan Claude Code. Setiap kali engine mau ngelakuin sesuatu, misalnya jalanin tool, gambar layar, atau ngirim prompt, mod kamu dapet giliran duluan. Dia bisa cuma ngintip, ngubah dulu, atau jawab sendiri tanpa nerusin ke engine.
+
+Yang bikin saya kaget: mod bisa ngegambar ulang tampilan bawaan Claude Code. Tiap tool call bisa diganti jadi satu baris, jawaban model bisa digambar ulang pakai gaya lain, dan blok hasil tool bisa disembunyiin. Ini jauh lebih dalam dari sekadar nambah status line atau popup.
+
+Post ini panduan dari nol. Semua nama event, method, dan props di sini saya ambil dari type declaration yang ditulis Claude Code 2.1.294 sendiri. API-nya masih berlabel _early access_, jadi detailnya bisa berubah di rilis berikutnya.
+
+## Konsep Inti: Rantai Hook
+
+Kalau cuma boleh ingat satu hal dari post ini, ingat gambar ini.
+
+<img
+  src="https://ik.imagekit.io/2gfia2nrp/blog/bongkar-claude-code-mods/rantai-hook.png"
+  alt="Diagram rantai hook: event dari engine lewat Mod A, lalu Mod B, lalu perilaku bawaan engine, dan hasilnya balik lewat jalur yang sama"
+  width="600"
+  class="mx-auto rounded-lg shadow-md"
+/>
+
+Satu event lewat semua mod dulu, baru sampai ke perilaku bawaan engine. Hasilnya naik lagi lewat jalur yang sama. Jadi setiap mod bisa ngubah input sebelum engine jalan, dan bisa baca atau ngubah hasilnya setelah engine selesai.
+
+Kalau kamu pernah nulis middleware di Express atau Koa, bentuknya mirip banget.
+
+## Isinya Cuma Tiga File
+
+Satu mod itu satu folder. Ga ada build step, engine langsung baca TypeScript-nya.
+
+```text
+mod-saya/
+├─ .claude-plugin/
+│  └─ plugin.json      nama, versi, deskripsi
+└─ hooks/
+   ├─ hooks.json       nunjuk ke register.tsx
+   └─ register.tsx     semua logika di sini
+```
+
+Dua file JSON-nya pendek:
+
+```jsonc
+// .claude-plugin/plugin.json
+{ "name": "mod-saya", "version": "0.1.0", "description": "Toast tiap turn selesai" }
+
+// hooks/hooks.json
+{ "modules": ["./register.tsx"] }
+```
+
+Dan ini mod paling kecil yang beneran jalan:
+
+```ts
+import type { Register } from "claude-code";
+
+export const register: Register = (on, options) => {
+  // tiap turn selesai, munculin toast
+  on("turn.complete", async ($, e, next) => {
+    $.ui.toast("Turn selesai");
+    return next(e);
+  });
+};
+```
+
+Satu hal yang perlu diingat dari awal: mod jalan di environment-nya sendiri. Ga ada Node, ga ada DOM. `import fs from "node:fs"` ga bakal jalan, dan module yang pakai `import()` dinamis malah ga di-load sama sekali. Semua akses ke luar lewat `$`. Parameter `options` isinya nilai `userConfig` dari `plugin.json`.
+
+## Rumusnya Satu
+
+Semua mod, sekecil atau segede apa pun, isinya panggilan `on(...)` kayak gini:
+
+```ts
+on("tool.call", { tool: "Bash" }, async ($, e, next) => {
+  // ...
+});
+```
+
+| Bagian              | Artinya                 | Contoh                                               |
+| ------------------- | ----------------------- | ---------------------------------------------------- |
+| `"tool.call"`       | **kapan**               | `"turn.complete"`, `"ui.render"`, `"prompt.submit"`  |
+| `{ tool: "Bash" }`  | **yang mana**, opsional | `{ component: "ToolUse" }`, `{ command: "catatan" }` |
+| `($, e, next) => …` | **ngapain**             | fungsi hook-nya                                      |
+
+Hook-nya sendiri selalu nerima tiga hal:
+
+| Parameter | Isinya                                                                                            |
+| --------- | ------------------------------------------------------------------------------------------------- |
+| `$`       | Remote ke engine. Layar, model, file, jam, session. Semua yang mod mau sentuh lewat sini.         |
+| `e`       | Isi event-nya, read-only. Buat `tool.call` isinya nama tool plus input-nya, misalnya `e.command`. |
+| `next`    | Terusin ke mod berikutnya, ujungnya perilaku bawaan engine. Nilai baliknya hasil event itu.       |
+
+### Empat Gerakan Hook
+
+Dari tiga parameter itu, cuma ada empat hal yang bisa dilakuin sebuah hook.
+
+<img
+  src="https://ik.imagekit.io/2gfia2nrp/blog/bongkar-claude-code-mods/empat-gerakan-hook.png"
+  alt="Empat gerakan hook: terusin apa adanya, ubah dulu baru terusin, jawab sendiri tanpa next, dan terusin lalu baca hasilnya"
+  width="600"
+  class="mx-auto rounded-lg shadow-md"
+/>
+
+#### 1. **Terusin Apa Adanya**
+
+Cuma ngintip, ga ngubah apa-apa. Paling sering dipakai buat nyatet atau ngitung.
+
+```ts
+return next(e);
+```
+
+#### 2. **Ubah Dulu, Baru Terusin**
+
+Mod di bawahnya dan engine cuma ngelihat versi yang udah diubah.
+
+```ts
+return next({ ...e, command: e.command.trim() });
+```
+
+#### 3. **Jawab Sendiri**
+
+Ga manggil `next`. Engine ga pernah jalanin perilaku bawaannya, dan yang di atas nerima jawaban dari hook ini.
+
+```ts
+return { deny: ".env ga boleh diedit" };
+```
+
+#### 4. **Terusin, Terus Baca Hasilnya**
+
+Tunggu engine kelar, terus bereaksi ke hasilnya.
+
+```ts
+const ran = await next(e);
+if (ran.isError) $.ui.status("gagal");
+return ran;
+```
+
+Satu jebakan penting: **hook yang error di-skip, dan rantainya jalan terus.** Buat mod tampilan, itu bagus, karena mod yang rusak ga bikin Claude Code ikut rusak. Buat mod penjaga, itu bahaya. Mod yang mestinya nolak `rm -rf` terus crash berarti command-nya tetap jalan. Makanya hook penjaga dikasih `.catch`:
+
+```ts
+on("tool.call", { tool: "Bash" }, guard).catch(($, e, next) =>
+  next.called ? next(e) : { deny: "guard-nya error" },
+);
+```
+
+`next.called` ngasih tau hook-nya udah sempet manggil `next` atau belum. Kalau belum, `.catch` nolak.
+
+## Kapan Mod Dipanggil
+
+Ini urutan event dalam satu session, dari buka Claude sampai keluar. Klik tiap langkah buat lihat kapan event-nya jalan, bisa ngapain, dan contoh kodenya.
+
+<Timeline
+  label="Urutan event dalam satu session"
+  note="Langkah 4 dan 5 bisa berulang berkali-kali dalam satu turn: model jawab, pakai tool, jawab lagi. ui.render jalan terpisah dari urutan ini, tiap kali engine mau gambar ulang satu bagian layar."
+  steps={[
+    { id: "session-start", label: "session.start", hint: "buka Claude" },
+    { id: "prompt-submit", label: "prompt.submit", hint: "kamu tekan Enter" },
+    { id: "turn-start", label: "turn.start", hint: "model mulai" },
+    { id: "turn-step", label: "turn.step", hint: "request ke model" },
+    { id: "tool-call", label: "tool.call", hint: "model pakai tool" },
+    { id: "turn-complete", label: "turn.complete", hint: "jawaban kelar" },
+    { id: "session-end", label: "session.end", hint: "exit atau /clear" },
+  ]}
+>
+
+<PickPanel id="session-start">
+
+`session.start` jalan sekali per process buat tiap plugin, sebelum prompt pertama. Hot reload juga nembak event ini lagi.
+
+Tempat yang pas buat daftarin slash command, buka pane, atau siapin data awal.
+
+```ts
+on("session.start", async ($, e, next) => {
+  await $.command.register({
+    name: "catatan",
+    description: "Buka pane catatan",
+  });
+  return next(e);
+});
+```
+
+</PickPanel>
+
+<PickPanel id="prompt-submit">
+
+`prompt.submit` jalan waktu kamu tekan Enter, sebelum turn mulai.
+
+Teksnya bisa diubah pakai `next({ ...e, text })`, dan pesan di layar ikut berubah. Prompt-nya juga bisa dibatalin dengan balikin `{ drop: "alasan" }`.
+
+```ts
+on("prompt.submit", async ($, e, next) =>
+  e.text.trim() === "tt"
+    ? next({ ...e, text: "Jalanin semua test, terus benerin yang gagal" })
+    : next(e),
+);
+```
+
+</PickPanel>
+
+<PickPanel id="turn-start">
+
+`turn.start` jalan waktu turn model mulai, sebelum model call pertama.
+
+Biasanya dipakai buat reset tampilan atau counter punya mod. Mod `next-steps` misalnya, nyembunyiin saran prompt yang lama di sini.
+
+```ts
+on("turn.start", async ($, e, next) => {
+  saran = []; // buang saran lama
+  $.ui.invalidate("ui.render"); // minta layar digambar ulang
+  return next(e);
+});
+```
+
+</PickPanel>
+
+<PickPanel id="turn-step">
+
+`turn.step` jalan di tiap request ke model dalam satu turn. Satu turn bisa punya banyak step: model jawab, pakai tool, jawab lagi.
+
+Ini event streaming. Hook-nya wajib `async function*`, bentuk lain ga di-load. `yield* next(e)` nerusin semua potongan apa adanya, dan `for await` di atasnya bisa ngubah potongan satu-satu.
+
+```ts
+on("turn.step", async function* ($, e, next) {
+  const hasil = yield* next(e); // terusin semua potongan apa adanya
+  return hasil;
+});
+```
+
+</PickPanel>
+
+<PickPanel id="tool-call">
+
+`tool.call` jalan waktu engine mau jalanin tool: Bash, Edit, Read, MCP, semuanya.
+
+Hook bisa blok pakai `{ deny }`, ubah input-nya, atau `await next(e)` terus baca hasilnya. Saudaranya, `tool.check`, jalan waktu engine mutusin satu tool call boleh jalan atau ga.
+
+```ts
+on("tool.call", { tool: "Bash" }, async ($, e, next) => {
+  const ran = await next(e); // Bash beneran jalan di sini
+  const gagal = ran.deny === undefined && ran.isError === true;
+  $.ui.status(gagal ? `gagal: ${e.command.slice(0, 40)}` : undefined);
+  return ran;
+});
+```
+
+</PickPanel>
+
+<PickPanel id="turn-complete">
+
+`turn.complete` jalan waktu turn selesai, pas durasinya dilaporin. Isi `e` di antaranya `e.reason` (misalnya `"answer"`), `e.answer`, dan `e.turnId`.
+
+Tempat yang pas buat toast, nyimpen ringkasan, atau minta saran ke model.
+
+```ts
+on("turn.complete", async ($, e, next) => {
+  const result = await next(e);
+  if (e.reason === "answer") $.ui.toast(`Jawaban ${e.answer.length} karakter`);
+  return result;
+});
+```
+
+</PickPanel>
+
+<PickPanel id="session-end">
+
+`session.end` jalan sekali waktu session selesai: exit, `/clear`, resume, logout, atau signal.
+
+Setelah `/clear`, yang datang `session.end` dengan `reason: "clear"`, dan ga ada `session.start` lagi sesudahnya.
+
+```ts
+on("session.end", async ($, e, next) => {
+  if (e.reason === "clear") $.ui.log("session di-/clear");
+  return next(e);
+});
+```
+
+</PickPanel>
+
+</Timeline>
+
+## Bagian Layar yang Bisa Diganti
+
+Event `ui.render` bisa ngegambar ulang 15 component bawaan Claude Code. Gambar di bawah ini skematik, posisi persisnya bisa beda. Label di kanan tiap baris itu nama component-nya. Yang labelnya `$.ui.status` dan `$.ui.toast` diisi lewat method, dan kotak input sama sekali ga bisa digambar ulang. Klik baris mana aja buat lihat itu component apa dan mod mana yang udah ngutak-atiknya.
+
+<TerminalMap
+  title="claude ~/proyek"
+  label="Peta layar Claude Code"
+  initial="ToolUse"
+  rows={[
+    { id: "InfoNotice", text: "  Opus 5.5, Claude Max, /model", tag: "InfoNotice", muted: true },
+    { id: "UserMessage", text: "> rapihin README terus commit", tag: "UserMessage" },
+    { id: "AssistantMessage", text: "● Oke, saya cek README-nya dulu.", tag: "AssistantMessage" },
+    { id: "ToolGroup", text: "● Read 3 files, searched 2 patterns", tag: "ToolGroup" },
+    { id: "ToolUse", text: "● Bash(git status)", tag: "ToolUse" },
+    { id: "ToolResult", text: "  ⎿  On branch main, 2 files changed", tag: "ToolResult", muted: true },
+    { id: "TurnDuration", text: "✻ Baked for 1m 20s", tag: "TurnDuration", muted: true },
+    { id: "UserMessage", text: "> /cost", tag: "UserMessage" },
+    { id: "CommandOutput", text: "  ⎿  Total cost: $0.42", tag: "CommandOutput", muted: true },
+    { id: "UserMessage", text: "> jalanin test", tag: "UserMessage" },
+    { id: "ToolUse", text: "● Bash(npm test)", tag: "ToolUse" },
+    { id: "ToolProgress", text: "  ⎿  Running… ctrl+b to run in background", tag: "ToolProgress", muted: true },
+    { id: "Spinner", text: "✶ Sauteing… (12s, 300 tokens)", tag: "Spinner" },
+    { id: "AbovePrompt", text: "Last turn: 80s, 4 tool calls  [Hide]", tag: "AbovePrompt" },
+    { id: "PromptInput", text: "> █", tag: "kotak input", kind: "locked" },
+    { id: "PromptHint", text: "esc to interrupt", tag: "PromptHint", muted: true },
+    { id: "SessionMode", text: "focus", tag: "SessionMode", muted: true },
+    { id: "Status", text: "status: 1 test gagal", tag: "$.ui.status", kind: "method" },
+    { id: "Toast", text: "Turn tadi 134 detik", tag: "$.ui.toast", kind: "method", floating: true },
+  ]}
+  pane={{
+    id: "Pane",
+    title: "Tool calls",
+    tag: "Pane",
+    lines: ["✓ Read README.md", "✓ Bash git status", "… Bash npm test"],
+  }}
+>
+
+<PickPanel id="ToolUse">
+
+**`ToolUse`**: satu baris tool call di transcript. Props-nya `tool`, `input`, `output`, `isRunning`, `isErrored`, dan `isInterrupted`.
+
+Mod [`tool-lines`](https://github.com/Tickloop/claude-mods) ngeganti baris ini total jadi `● tool_call: Bash(git status) - error`, dengan warna titik dari statusnya.
+
+</PickPanel>
+
+<PickPanel id="ToolResult">
+
+**`ToolResult`**: blok hasil tool di bawah baris tool call.
+
+`tool-lines` ngembaliin `Box({})` yang kosong, jadi bloknya hilang. Transcript lengkap di Ctrl+O tetap nampilin semuanya.
+
+</PickPanel>
+
+<PickPanel id="ToolGroup">
+
+**`ToolGroup`**: beberapa read, search, dan listing yang dilipet jadi satu baris hitungan.
+
+`tool-lines` maksa `isExpanded: true`, jadi tiap call di dalamnya dibuka dan digambar lewat hook `ToolUse`.
+
+</PickPanel>
+
+<PickPanel id="UserMessage">
+
+**`UserMessage`**: prompt kamu yang muncul di transcript.
+
+`tool-lines` membungkusnya pakai `Box` dengan `marginBottom: 1`, sekalian baca `isExpanded` buat tau Ctrl+O lagi kebuka atau ga.
+
+</PickPanel>
+
+<PickPanel id="AssistantMessage">
+
+**`AssistantMessage`**: jawaban teks dari model.
+
+Mod `glamour-dark` dari repo yang sama nge-parse markdown-nya sendiri, terus gambar ulang pakai gaya [glamour](https://github.com/charmbracelet/glamour): heading berwarna, syntax highlight, dan tiap kalimat di baris sendiri.
+
+</PickPanel>
+
+<PickPanel id="InfoNotice">
+
+**`InfoNotice`**: satu baris status redup di bawah logo, misalnya sumber model atau hint settings, biasanya dengan satu `/command` di ujung.
+
+</PickPanel>
+
+<PickPanel id="TurnDuration">
+
+**`TurnDuration`**: baris penutup turn di transcript, misalnya `Baked for 3s`.
+
+</PickPanel>
+
+<PickPanel id="CommandOutput">
+
+**`CommandOutput`**: output slash command di transcript, misalnya baris-baris `/cost`, atau `text` yang dibalikin hook `command.run`.
+
+Kalau `text`-nya diubah, yang tampil di layar ikut berubah, tapi row yang disimpen tetap isi aslinya. Yang dibaca model tetap versi asli.
+
+</PickPanel>
+
+<PickPanel id="ToolProgress">
+
+**`ToolProgress`**: baris progress di bawah tool yang lagi jalan. Untuk sekarang isinya pill run-in-background.
+
+Bentuknya union berdasarkan `kind`, jadi match-nya pakai `{ props: { kind: "background_hint" } }`.
+
+</PickPanel>
+
+<PickPanel id="Spinner">
+
+**`Spinner`**: baris animasi selama turn jalan, misalnya `Sauteing… (12s, 300 tokens)`.
+
+`word`, `message`, dan `suffix`-nya bisa diubah, atau semuanya diganti tree sendiri.
+
+</PickPanel>
+
+<PickPanel id="AbovePrompt">
+
+**`AbovePrompt`**: band tepat di atas kotak input, tempat survey biasanya muncul. Bisa dilipet pakai `ctrl+x ctrl+a`.
+
+Mod [`next-steps`](https://github.com/anthropics/claude-plugins-community/tree/main/next-steps) buatan Thariq Shihipar naruh tombol 1, 2, 3 di sini. Props yang sering dipakai: `hasSurvey`, `isWorking`, dan `bodyColumns`.
+
+</PickPanel>
+
+<PickPanel id="PromptInput">
+
+**Kotak input** ga ada di daftar 15 component itu, jadi ga bisa digambar ulang.
+
+Yang masih bisa: isi draft pakai `$.prompt.fill`, kasih ghost text pakai `$.prompt.suggest`, dan baca ketikan lewat event `prompt.edit` dan `prompt.autocomplete`. Dialog izin tool juga ga ada di daftar, tapi keputusan izinnya bisa di-hook lewat `tool.check`.
+
+</PickPanel>
+
+<PickPanel id="PromptHint">
+
+**`PromptHint`**: baris hint di bawah input, kayak `? for shortcuts` atau `esc to interrupt`. Hook bisa ganti `hint`-nya, nambah `tail`, atau gambar sendiri.
+
+</PickPanel>
+
+<PickPanel id="SessionMode">
+
+**`SessionMode`**: label mode redup di kanan footer, misalnya `focus` atau `memory paused`. Mod bisa nambah mode sendiri lewat props `modes`.
+
+</PickPanel>
+
+<PickPanel id="Status">
+
+**`$.ui.status(teks)`** ngisi satu entry di status line dari hook mana aja. Ini method, bukan component. `$.ui.status(undefined)` buat ngosongin lagi.
+
+</PickPanel>
+
+<PickPanel id="Toast">
+
+**`$.ui.toast(teks)`** munculin notifikasi sementara, juga dari hook mana aja.
+
+</PickPanel>
+
+<PickPanel id="Pane">
+
+**`Pane`**: panel samping punya mod kamu. Buka pakai `$.ui.open({ id, title })`, terus gambar pakai `ui.render` dengan matcher `{ component: "Pane", requestId: id }`.
+
+Kalau dibuka karena kamu ngetik command atau mencet tombol, pane-nya langsung muncul. Kalau dibuka sendiri (dari `session.start` atau timer), dia baru muncul di terminal yang lebarnya minimal 144 kolom.
+
+</PickPanel>
+
+</TerminalMap>
+
+Satu yang ga kegambar di atas: `AskUserQuestion`, dialog pertanyaan pilihan ganda. Itu juga bisa di-hook.
+
+Hook `ui.render` punya tiga cara ngegambar. `return next(e)` biarin tampilan bawaan. `next({ ...e, props })` ngubah props-nya dulu. Atau balikin tree sendiri pakai elemen dari `$.ui.resolve(e)`. Semua surface punya `Box`, `Text`, `Button`, `Link`, `Code`, dan `Markdown`. Terminal juga punya `Raster` (grid warna, cocok buat sparkline) dan `Image`.
+
+`e.surface` bisa `terminal`, `desktop`, `vscode`, atau `mobile`. Mod tampilan biasanya ngecek ini dulu, karena tree yang bagus di terminal belum tentu cocok di desktop.
+
+## `$`: Remote ke Engine
+
+Mod ga bisa nyentuh apa-apa secara langsung. Semuanya lewat `$.<noun>.<method>()`. Kolom terakhir nandain noun yang bisa nyentuh mesin atau internet kamu.
+
+| Noun                     | Buat apa                                                                                      | Method                                                  | Akses ke luar |
+| ------------------------ | --------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------- |
+| `$.ui`                   | Gambar, kasih tau, buka pane                                                                  | `status`, `toast`, `open`, `close`, `log`, `invalidate` |               |
+| `$.audio`                | Bunyi dari file milik mod, atau ngomong                                                       | `play`, `speak`                                         |               |
+| `$.model`                | `complete` satu call tanpa history, `fork` pakai context session, `classify` pilih satu label | `complete`, `fork`, `classify`                          | kuota model   |
+| `$.tool`                 | Bikin tool baru buat model, namanya jadi `mcp__<plugin>__<name>`                              | `register`, `list`, `call`                              |               |
+| `$.agent`                | Bikin tipe subagent baru, atau start satu                                                     | `register`, `spawn`, `list`                             |               |
+| `$.command`              | Slash command punya mod                                                                       | `register`, `list`, `run`                               |               |
+| `$.mcp`                  | Ngobrol sama MCP server                                                                       | `call`, `connect`                                       |               |
+| `$.session`              | Isi conversation, usage, model, folder                                                        | `messages`, `usage`, `model`, `cwd`, `send`             |               |
+| `$.prompt`               | Isi kotak input, tanpa pernah ngirim sendiri                                                  | `fill`, `suggest`, `read`                               |               |
+| `$.turn`                 | Hentiin turn yang lagi jalan                                                                  | `abort`                                                 |               |
+| `$.config`, `$.settings` | Row `/config` dan baca settings                                                               | `config.set`, `settings.read`                           |               |
+| `$.telemetry`            | Kirim record atau tandain pemakaian fitur                                                     | `log`, `mark`                                           |               |
+| `$.state`                | Nilai selama session. Yang baca otomatis digambar ulang, dan nilainya selamat dari hot reload | `get`, `set`                                            |               |
+| `$.store`                | Nilai yang awet lintas session                                                                | `get`, `set`, `keys`, `delete`                          |               |
+| `$.clock`                | Jam dan timer                                                                                 | `now`, `after`, `every`, `sleep`                        |               |
+| `$.fs`                   | Baca dan tulis file                                                                           | `read`, `write`, `list`, `exists`                       | disk          |
+| `$.process`              | Jalanin program di mesin kamu                                                                 | `run`, `spawn`                                          | shell         |
+| `$.http`                 | Request ke mana aja                                                                           | `fetch`                                                 | internet      |
+| `$.env`                  | Environment variable, termasuk token                                                          | `get`, `set`                                            | secret        |
+
+Detail yang menarik: **panggilan `$` juga lewat rantai yang sama kayak event.** `fs.read`, `http.fetch`, dan `process.run` semuanya bisa di-hook. Artinya satu mod bisa nge-`deny` `$.http.fetch` punya mod lain.
+
+## Contoh Kasus
+
+Delapan kasus, dari yang paling sering ditemuin. Dua yang pertama mod beneran yang ada di GitHub. Sisanya contoh resmi dari skill `plugin-authoring` bawaan Claude Code, atau dari doc di type declaration-nya.
+
+<Tabs
+  label="Contoh kasus"
+  tabs={[
+    { id: "tool-lines", label: "tool-lines" },
+    { id: "next-steps", label: "next-steps" },
+    { id: "satpam-env", label: "Satpam .env" },
+    { id: "toast-turn", label: "Toast turn lama" },
+    { id: "command-pane", label: "Command dan pane" },
+    { id: "shortcut-prompt", label: "Shortcut prompt" },
+    { id: "aturan-system-prompt", label: "Aturan system prompt" },
+    { id: "subagent-haiku", label: "Subagent hemat" },
+  ]}
+>
+
+<Tab id="tool-lines">
+
+**Tiap tool call cukup satu baris.** Event: `ui.render` di `ToolUse`, `ToolResult`, `ToolGroup`, dan `UserMessage`.
+
+```text
+● tool_call: Read(src/app.ts)
+● tool_call: Bash(git status)
+● tool_call: Bash(npm test) - error
+● tool_call: Edit(src/app.ts)
+```
+
+Warna titiknya dari status: kuning kalau jalan atau nunggu, hijau kalau selesai, merah kalau error. Argumennya dipotong 35 karakter. Ini versi pendek dari [Tickloop/claude-mods](https://github.com/Tickloop/claude-mods). Versi aslinya juga ngecek mode Ctrl+O biar tampilan lengkap tetap ada.
+
+```ts
+on("ui.render", { component: "ToolResult" }, async ($, e, next) => {
+  if (e.surface !== "terminal") return next(e);
+  const { Box } = $.ui.resolve(e);
+  return Box({}); // kosong: blok hasil ga digambar
+});
+
+on("ui.render", { component: "ToolUse" }, async ($, e, next) => {
+  if (e.surface !== "terminal") return next(e);
+  const { Box, Text } = $.ui.resolve(e);
+  const color = e.props.isErrored
+    ? "error"
+    : e.props.isRunning || e.props.output === undefined
+      ? "warning"
+      : "success";
+  return Box({
+    flexDirection: "row",
+    children: [
+      Text({ color, children: ["●"] }),
+      Text({ dimColor: true, children: ["tool_call: "] }),
+      Text({ bold: true, children: [e.props.tool] }),
+    ],
+  });
+});
+
+// grup read/search dibuka, tiap isinya lewat hook ToolUse di atas
+on("ui.render", { component: "ToolGroup" }, async ($, e, next) =>
+  next({ ...e, props: { ...e.props, isExpanded: true } }),
+);
+```
+
+</Tab>
+
+<Tab id="next-steps">
+
+**Saran tiga prompt berikutnya.** Alurnya `turn.complete`, lalu `$.model.fork`, lalu `ui.render` di `AbovePrompt`, lalu `$.prompt.fill` waktu tombolnya ditekan.
+
+```text
+next:
+  1: jalanin test yang barusan ditulis
+  2: lakuin hal yang sama buat halaman settings
+  3: /code-review high
+  0: dismiss
+```
+
+`$.model.fork` ngirim ulang request terakhir session (model, system prompt, tools, history) plus satu pesan tambahan. Prefix-nya kena prompt cache, jadi murah. Tapi call itu tetap jalan pakai model dan kuota session kamu.
+
+Versi asli [buatan Thariq Shihipar](https://github.com/anthropics/claude-plugins-community/tree/main/next-steps) juga bersihin teks dari escape sequence, buang slash command yang ga ada, dan ngisi ghost text pakai `$.prompt.suggest`. Mod-nya ga pernah ngirim prompt sendiri.
+
+```tsx
+let saran: string[] = [];
+
+on("turn.start", async ($, e, next) => {
+  saran = [];
+  $.ui.invalidate("ui.render");
+  return next(e);
+});
+
+on("turn.complete", async ($, e, next) => {
+  const result = await next(e);
+  if (e.reason !== "answer") return result;
+  void (async () => {
+    // jalan di belakang, turn ga nunggu
+    const reply = await $.model.fork({
+      prompt:
+        "Jangan lanjutin task. Tebak 3 prompt berikutnya. Jawab JSON array of string.",
+    });
+    try {
+      saran = reply.isAnswered ? JSON.parse(reply.text) : [];
+    } catch {
+      saran = [];
+    }
+    $.ui.invalidate("ui.render");
+  })();
+  return result;
+});
+
+on("ui.render", { component: "AbovePrompt" }, async ($, e, next) => {
+  const below = await next(e);
+  if (saran.length === 0 || e.props.isWorking) return below;
+  const { Box, Button } = $.ui.resolve(e);
+  return (
+    <Box flexDirection="column">
+      {below}
+      {saran.map((p, i) => (
+        <Button
+          key={`s${i}`}
+          hotkey={String(i + 1)}
+          plain
+          label={p}
+          onPress={() => $.prompt.fill({ text: p })}
+        />
+      ))}
+    </Box>
+  );
+});
+```
+
+</Tab>
+
+<Tab id="satpam-env">
+
+**Model ga boleh ngedit `.env`.** Event: `tool.call` dengan matcher `{ tool: "Edit" }`, plus `.catch`.
+
+Model nerima alasan penolakannya, jadi dia bisa cari cara lain. `.catch` di bawah ini penting: tanpa itu, kalau hook-nya crash, hook di-skip dan Edit-nya tetap jalan.
+
+```ts
+const PROTECTED = /(^|\/)\.env(\.|$)/;
+
+on("tool.call", { tool: "Edit" }, ($, e, next) =>
+  PROTECTED.test(e.file_path)
+    ? { deny: `${$.plugin.name}: ${e.file_path} is protected here.` }
+    : next(e),
+).catch(($, e, next) =>
+  next.called ? next(e) : { deny: `${$.plugin.name}: its guard failed.` },
+);
+```
+
+</Tab>
+
+<Tab id="toast-turn">
+
+**Kasih tau kalau turn kelamaan.** Event: `prompt.submit` buat nyatet jam mulai, `turn.complete` buat ngitung, dan `$.ui.toast` buat ngasih tau.
+
+Contoh resminya nyimpen hasilnya di `$.state` dan nampilin di band `AbovePrompt`. Variabel module kayak `startedAt` ke-reset tiap hot reload, jadi data yang digambar sebaiknya disimpen di `$.state`.
+
+```ts
+let startedAt = 0;
+
+on("prompt.submit", async ($, e, next) => {
+  startedAt = await $.clock.now();
+  return next(e);
+});
+
+on("turn.complete", async ($, e, next) => {
+  const seconds = Math.round(((await $.clock.now()) - startedAt) / 1000);
+  if (seconds > 120) $.ui.toast(`Turn tadi ${seconds} detik`);
+  return next(e);
+});
+```
+
+</Tab>
+
+<Tab id="command-pane">
+
+**Slash command yang buka panel.** Alurnya `session.start` buat daftarin command, `command.run` buat jawab command-nya, `$.ui.open` buat buka pane, dan `ui.render` di `Pane` buat gambar isinya.
+
+`{ text }` yang dibalikin `command.run` muncul di transcript sebagai `CommandOutput`.
+
+```tsx
+on("session.start", async ($, e, next) => {
+  await $.command.register({
+    name: "catatan",
+    description: "Buka pane catatan",
+  });
+  return next(e);
+});
+
+on("command.run", { command: "catatan" }, async ($) => {
+  await $.ui.open({ id: "catatan", title: "Catatan" });
+  return { text: "Pane catatan dibuka." };
+});
+
+on("ui.render", { component: "Pane", requestId: "catatan" }, async ($, e) => {
+  const { Box, Text } = $.ui.resolve(e);
+  return (
+    <Box>
+      <Text>Isi pane di sini</Text>
+    </Box>
+  );
+});
+```
+
+</Tab>
+
+<Tab id="shortcut-prompt">
+
+**Singkatan jadi prompt panjang.** Event: `prompt.submit` dengan `next({ ...e, text })`.
+
+Kamu ngetik `tt`, yang masuk ke model dan muncul di layar jadi "Jalanin semua test, terus benerin yang gagal". Kebalikannya, `return { drop: "alasan" }` batalin prompt-nya.
+
+```ts
+const SINGKATAN: Record<string, string> = {
+  tt: "Jalanin semua test, terus benerin yang gagal",
+  cm: "Commit perubahan ini dengan message yang jelas",
+};
+
+on("prompt.submit", async ($, e, next) => {
+  const panjang = SINGKATAN[e.text.trim()];
+  return panjang ? next({ ...e, text: panjang }) : next(e);
+});
+```
+
+</Tab>
+
+<Tab id="aturan-system-prompt">
+
+**Tambah aturan ke system prompt.** Event: `prompt.compose`, yang balikin `{ sections }`.
+
+Section baru taruh paling akhir dengan `scope: "session"`. Kalau ada section `shared` sesudah section `session`, hook-nya di-skip. Event ini salah satu yang paling kuat: mod orang yang pakai `prompt.compose` bisa nyuruh model apa aja, jadi selalu baca isinya.
+
+```ts
+on("prompt.compose", async ($, e, next) => {
+  const { sections } = await next(e);
+  return {
+    sections: [
+      ...sections,
+      {
+        id: "aturan-tim",
+        text: "Commit message selalu bahasa Inggris.",
+        scope: "session",
+      },
+    ],
+  };
+});
+```
+
+</Tab>
+
+<Tab id="subagent-haiku">
+
+**Semua subagent pakai Haiku.** Event: `agent.spawn`.
+
+Selain ganti model, hook ini bisa balikin `{ model }` sendiri, atau `{ deny: "alasan" }` biar subagent-nya ga jalan. Kalau dipakai buat nolak, kasih `.catch` juga. Tanpa itu, hook yang crash di-skip dan subagent-nya tetap start.
+
+```ts
+on("agent.spawn", ($, e, next) => next({ ...e, model: "haiku" }));
+```
+
+</Tab>
+
+</Tabs>
+
+## Daftar Lengkap 46 Event
+
+Ini semua event yang bisa dipasang di `on(...)` di Claude Code 2.1.294. Ketik buat nyari, atau pilih satu grup.
+
+export const eventGroups = [
+  {
+    id: "tool",
+    title: "Tool",
+    items: [
+      {
+        name: "tool.call",
+        text: "Engine mau jalanin tool. Blok, ubah input, atau baca hasilnya.",
+      },
+      {
+        name: "tool.check",
+        text: "Engine lagi mutusin satu tool call boleh jalan atau ga.",
+      },
+      {
+        name: "tool.describe",
+        text: "Schema tool pertama kali dirender buat model. Deskripsi tool bisa diubah di sini.",
+      },
+    ],
+  },
+  {
+    id: "layar",
+    title: "Layar",
+    items: [
+      {
+        name: "ui.render",
+        text: "Engine mau gambar satu component. Ganti, bungkus, atau ubah props-nya.",
+      },
+      {
+        name: "ui.resolve",
+        text: "Waktu plugin load: tabel elemen per surface dan component.",
+      },
+      { name: "ui.press", text: "Button yang digambar mod ditekan." },
+      {
+        name: "ui.input",
+        text: "Input yang digambar mod berubah atau di-submit.",
+      },
+      {
+        name: "ui.select",
+        text: "Pilihan di Select yang digambar mod dipilih.",
+      },
+      { name: "ui.scroll", text: "Sebelum satu area layar ke-scroll." },
+      {
+        name: "ui.focus",
+        text: "Sebelum fokus pindah lewat Tab, panah, atau klik.",
+      },
+      {
+        name: "ui.message",
+        text: "Client punya mod ngirim pesan dari surface-nya.",
+      },
+      {
+        name: "ui.fault",
+        text: "Client punya mod gagal jalan di satu surface.",
+      },
+    ],
+  },
+  {
+    id: "prompt",
+    title: "Prompt",
+    items: [
+      {
+        name: "prompt.submit",
+        text: "Prompt di-Enter, sebelum turn mulai. Ubah teks atau batalin.",
+      },
+      {
+        name: "prompt.fill",
+        text: "Teks mau ditaruh di kotak input sebagai draft.",
+      },
+      {
+        name: "prompt.suggest",
+        text: "Teks mau jadi ghost text abu-abu yang bisa diambil pakai Tab.",
+      },
+      { name: "prompt.edit", text: "Kamu ngedit isi kotak input." },
+      {
+        name: "prompt.autocomplete",
+        text: "Kamu lagi ngetik, buat token di posisi kursor.",
+      },
+      {
+        name: "prompt.compose",
+        text: "Engine nyusun system prompt. Tambah, ganti, urutin, atau buang section.",
+      },
+      { name: "prompt.section", text: "Per section system prompt, satu-satu." },
+      {
+        name: "prompt.context",
+        text: "Sekali per conversation: context block di pesan pertama.",
+      },
+      {
+        name: "prompt.attachment",
+        text: "Tiap pesan yang engine selipin sendiri buat model, misalnya system-reminder.",
+      },
+      { name: "prompt.mention", text: "Tiap path yang kamu sebut pakai @." },
+    ],
+  },
+  {
+    id: "turn",
+    title: "Turn",
+    items: [
+      { name: "turn.start", text: "Turn mulai, sebelum model call pertama." },
+      {
+        name: "turn.step",
+        text: "Tiap request ke model dalam satu turn. Streaming, hook-nya async generator.",
+      },
+      { name: "turn.complete", text: "Turn selesai, pas durasinya dilaporin." },
+    ],
+  },
+  {
+    id: "session",
+    title: "Session",
+    items: [
+      {
+        name: "session.start",
+        text: "Sekali per process buat tiap plugin, sebelum prompt pertama.",
+      },
+      {
+        name: "session.end",
+        text: "Session selesai: exit, /clear, resume, logout, atau signal.",
+      },
+      {
+        name: "session.append",
+        text: "Tiap row yang disimpen conversation: prompt, jawaban, tool.",
+      },
+      {
+        name: "session.compact",
+        text: "Conversation mau di-compact, lewat /compact atau otomatis.",
+      },
+      {
+        name: "session.send",
+        text: "Pesan teks mau keluar dari conversation ini ke tempat lain.",
+      },
+      {
+        name: "session.receive",
+        text: "Kiriman masuk ke session: event relay atau pesan peer.",
+      },
+      { name: "session.attach", text: "Client remote gabung ke session." },
+      {
+        name: "session.detach",
+        text: "Client remote keluar, atau session-nya selesai.",
+      },
+      {
+        name: "session.measure",
+        text: "Engine ngukur ulang session dan ada angka yang berubah.",
+      },
+    ],
+  },
+  {
+    id: "lainnya",
+    title: "Lainnya",
+    items: [
+      {
+        name: "command.run",
+        text: "Slash command mau jalan. Mod bisa jawab command-nya sendiri.",
+      },
+      {
+        name: "command.describe",
+        text: "Tiap command waktu dilist di typeahead.",
+      },
+      { name: "config.set", text: "Satu row /config mau berubah." },
+      {
+        name: "config.describe",
+        text: "Tiap row /config waktu menu-nya dilist.",
+      },
+      {
+        name: "agent.spawn",
+        text: "Subagent mau di-start. Ganti model atau tolak.",
+      },
+      {
+        name: "agent.offer",
+        text: "Engine nawarin satu tipe agent ke model. Bisa disembunyiin.",
+      },
+      {
+        name: "skill.prompt",
+        text: "Engine nge-expand prompt satu skill buat model.",
+      },
+      {
+        name: "attribution.text",
+        text: "Engine nyusun teks git yang bakal ditulis model, misalnya attribution commit atau PR.",
+      },
+      {
+        name: "telemetry.log",
+        text: "Satu record mau dikirim ke collector OpenTelemetry kamu atau analytics Anthropic.",
+      },
+      { name: "telemetry.mark", text: "Satu pemakaian fitur ditandai." },
+      {
+        name: "plugin.register",
+        text: "Tiap hooks module mau gabung ke rantai, waktu load.",
+      },
+      {
+        name: "engine.create",
+        text: "Waktu $ lagi dibangun. Plugin bisa nambah noun baru ke $.",
+      },
+    ],
+  },
+];
+
+<Catalog
+  groups={eventGroups}
+  label="Cari event"
+  placeholder="Cari event, misalnya subagent"
+  unit="event"
+  empty="Ga ada event yang cocok."
+/>
+
+Selain 46 itu masih ada dua keluarga lagi. Yang pertama `classic.*`, hook settings model lama kayak `classic.Stop` atau `classic.SessionEnd`, dengan `e` yang sama persis kayak yang mereka terima di stdin. Yang kedua semua panggilan `$` kayak `fs.read` atau `http.fetch`, yang udah dibahas di bagian remote tadi.
+
+## Sebelum Install Mod Orang
+
+Mod jalan di dalam Claude Code, dan lewat `$` dia bisa baca file, jalanin program, dan akses internet. Lima hal ini cukup buat menilai satu mod dalam beberapa menit:
+
+1. **Cari `$.fs`, `$.process`, `$.http`, dan `$.env`.** Empat noun ini yang bisa nyentuh disk, shell, internet, dan token kamu. Mod tampilan harusnya ga butuh satu pun.
+2. **Cari `tool.call`, `prompt.submit`, `prompt.compose`, dan `session.send`.** Ini yang bisa ngubah apa yang dikerjain atau dibaca model.
+3. **Cari `$.model`.** `fork` dan `complete` makan kuota model kamu tiap kali dipanggil.
+4. **Jalanin `claude plugin validate <folder>`.** Dia ngelaporin semua yang di-hook dan dipanggil module itu, plus semua yang bakal ditolak engine.
+5. **Pin commit-nya.** Kalau install-nya lewat clone, tiap `git pull` berarti kode baru jalan di dalam Claude Code. Baca diff-nya dulu.
+
+Sebagai contoh, ini hasilnya buat tiga mod yang saya bahas di atas:
+
+| Mod            | Event                                      | Panggilan `$`                                                 | Akses ke luar            |
+| -------------- | ------------------------------------------ | ------------------------------------------------------------- | ------------------------ |
+| `tool-lines`   | `ui.render` (4 hook)                       | `ui.resolve`, `ui.invalidate`                                 | ga ada                   |
+| `glamour-dark` | `ui.render` (1 hook)                       | `ui.resolve`                                                  | ga ada                   |
+| `next-steps`   | `turn.start`, `turn.complete`, `ui.render` | `model.fork`, `command.list`, `prompt.fill`, `prompt.suggest` | satu call model per turn |
+
+Kalau mau nyari inspirasi, katalog [awesome-claude-code-mods](https://github.com/karanb192/awesome-claude-code-mods) nge-scan GitHub dan nyatet akses tiap mod pakai validator yang sama. Mod buatan Anthropic sendiri (`diff`, `agents-md`, `sec-default`, `telemetry`) ada di [anthropics/claude-code](https://github.com/anthropics/claude-code/tree/main/mods), dan itu contoh kode yang paling bisa dipercaya.
+
+## Bikin Mod Pertama
+
+### 1. **Minta Claude Bikinin**
+
+Cara paling cepat: bilang "bikin mod yang ..." di session Claude Code. Skill `plugin-authoring` bawaannya nulis tiga file tadi di `~/.claude/dev-mods/<session>/<mod>/`, terus nanya "Enable hot reloading for this session?". Kalau dijawab enable, mod-nya langsung jalan begitu turn selesai.
+
+### 2. **Atau Jalanin Folder Sendiri**
+
+```bash
+claude --plugin-dir ./mod-saya
+```
+
+Folder-nya di-watch. Tiap kali file di-save, module-nya di-load ulang. Variabel module ke-reset, sedangkan `$.state` dan `$.store` tetap.
+
+### 3. **Cek Sebelum Dipakai**
+
+```bash
+claude plugin validate ./mod-saya
+claude plugin test ./mod-saya   # jalanin *.test.ts
+```
+
+### 4. **Kalau Mod-nya Diam Aja**
+
+Jalanin `claude --debug`. Hook yang gagal dan tree yang ditolak tercatat di debug log. Selama hot reload, transcript juga nampilin satu baris redup kayak `mod-saya: ui.render (ToolUse) refused: …; the engine drew its own`.
+
+### 5. **Share**
+
+Taruh `.claude-plugin/marketplace.json` di repo-nya. Orang lain cukup install pakai satu baris:
+
+```bash
+/plugin install mod-saya --marketplace <owner>/<repo>
+```
+
+## Kesimpulan
+
+- Mod itu satu file TypeScript yang nyelip di rantai hook. Setiap event lewat semua mod dulu, baru sampai ke perilaku bawaan engine.
+- Rumusnya cuma `on(event, matcher, hook)`, dan hook-nya cuma bisa empat hal: terusin, ubah dulu, jawab sendiri, atau baca hasilnya.
+- `ui.render` bisa ngegambar ulang 15 component bawaan. Kotak input dan dialog izin ga termasuk.
+- Semua akses ke luar lewat `$`, dan `$.fs`, `$.process`, `$.http`, serta `$.env` itu yang perlu dicek dulu sebelum install mod orang.
+- Hook yang error di-skip. Buat mod penjaga, selalu pasang `.catch`.
+
+Saya sendiri masih di tahap ngoprek. Kalau kamu udah bikin mod yang seru, kasih tau saya, siapa tau bisa masuk post berikutnya 🚀
