@@ -3,7 +3,7 @@ title: "Bongkar Claude Code Mods: Hook, Event, dan 15 Bagian Layar yang Bisa Dig
 seoTitle: "Bongkar Claude Code Mods: Hook dan Event"
 date: "2026-10-08"
 publishedTime: "2026-10-08T14:55:00Z"
-modifiedTime: "2026-10-09T00:05:00Z"
+modifiedTime: "2026-10-12T02:15:00Z"
 description: "Panduan dari nol buat mod Claude Code: rantai hook, kapan tiap event dipanggil, bagian layar yang bisa digambar ulang, remote $, delapan contoh kasus, dan daftar lengkap 46 event."
 tags:
   [
@@ -23,7 +23,7 @@ Mod itu satu file TypeScript yang nyelip di tengah kerjaan Claude Code. Setiap k
 
 Yang bikin saya kaget: mod bisa ngegambar ulang tampilan bawaan Claude Code. Tiap tool call bisa diganti jadi satu baris, jawaban model bisa digambar ulang pakai gaya lain, dan blok hasil tool bisa disembunyiin. Ini jauh lebih dalam dari sekadar nambah status line atau popup.
 
-Post ini panduan dari nol. Semua nama event, method, dan props di sini saya ambil dari type declaration yang ditulis Claude Code 2.1.295 sendiri. API-nya masih berlabel _early access_, jadi detailnya bisa berubah di rilis berikutnya. Perubahan yang udah masuk ke post ini saya catat di bagian [Pembaruan](#pembaruan).
+Post ini panduan dari nol. Semua nama event, method, dan props di sini saya ambil dari type declaration yang ditulis Claude Code 2.1.296 sendiri. API-nya masih berlabel _early access_, jadi detailnya bisa berubah di rilis berikutnya. Perubahan yang udah masuk ke post ini saya catat di bagian [Pembaruan](#pembaruan).
 
 ## Konsep Inti: Rantai Hook
 
@@ -756,7 +756,7 @@ on("agent.spawn", ($, e, next) => next({ ...e, model: "haiku" }));
 
 ## Daftar Lengkap 46 Event
 
-Ini semua event yang bisa dipasang di `on(...)` di Claude Code 2.1.295. Ketik buat nyari, atau pilih satu grup.
+Ini semua event yang bisa dipasang di `on(...)` di Claude Code 2.1.296. Ketik buat nyari, atau pilih satu grup.
 
 export const eventGroups = [
   {
@@ -979,7 +979,7 @@ Sebagai contoh, ini hasilnya buat tiga mod yang saya bahas di atas:
 | `glamour-dark` | `ui.render` (1 hook)                       | `ui.resolve`                                                  | ga ada                   |
 | `next-steps`   | `turn.start`, `turn.complete`, `ui.render` | `model.fork`, `command.list`, `prompt.fill`, `prompt.suggest` | satu call model per turn |
 
-Kalau kamu ngandelin mod penjaga, yang nolak tool call atau nge-`deny` panggilan `$` mod lain, pakai minimal Claude Code 2.1.295 (cek pakai `claude --version`). Versi sebelumnya punya dua celah. Tool input yang nested dalam bisa kepotong tanpa error, jadi guard ngelolosin isi yang ga pernah dia liat. Panggilan dari mod yang lagi reload waktu plugin hooks worker restart juga bisa lolos dari guard yang pakai `.catch`.
+Kalau kamu ngandelin mod penjaga, yang nolak tool call, nge-`drop` prompt, atau nge-`deny` panggilan `$` mod lain, pakai minimal Claude Code 2.1.296 (cek pakai `claude --version`). Versi sebelumnya punya tiga celah. Tool input yang nested dalam bisa kepotong tanpa error, jadi guard ngelolosin isi yang ga pernah dia liat. Panggilan dari mod yang lagi reload waktu plugin hooks worker restart juga bisa lolos dari guard yang pakai `.catch`. Sampai 2.1.295, Esc atau interrupt waktu hook `prompt.submit` masih jalan bisa ngelolosin prompt yang belum dicek.
 
 Kalau mau nyari inspirasi, katalog [awesome-claude-code-mods](https://github.com/karanb192/awesome-claude-code-mods) nge-scan GitHub dan nyatet akses tiap mod pakai validator yang sama. Mod buatan Anthropic sendiri (`diff`, `agents-md`, `sec-default`, `telemetry`) ada di [anthropics/claude-code](https://github.com/anthropics/claude-code/tree/main/mods), dan itu contoh kode yang paling bisa dipercaya.
 
@@ -1028,4 +1028,5 @@ Saya sendiri masih di tahap ngoprek. Kalau kamu udah bikin mod yang seru, kasih 
 
 ## Pembaruan
 
+- **12 Oktober 2026, Claude Code 2.1.296.** Versi minimal buat mod penjaga naik ke 2.1.296, dan sekarang nyebut guard di `prompt.submit`. Daftar 46 event-nya ga berubah.
 - **9 Oktober 2026, Claude Code 2.1.295.** `$.ui.notify` masuk ke tabel `$` dan panel Toast. Bagian "Sebelum Install Mod Orang" sekarang nyebut versi minimal buat mod penjaga. Daftar 46 event-nya ga berubah.
