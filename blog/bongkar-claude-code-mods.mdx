@@ -71,6 +71,7 @@ import type { Register } from "claude-code";
 export const register: Register = (on, options) => {
   // tiap turn selesai, munculin toast
   on("turn.complete", async ($, e, next) => {
+    if (e.agentId !== undefined) return next(e); // turn subagent, lewatin
     $.ui.toast("Turn selesai");
     return next(e);
   });
