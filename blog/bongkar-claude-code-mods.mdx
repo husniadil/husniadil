@@ -3,8 +3,8 @@ title: "Bongkar Claude Code Mods: Hook, Event, dan 15 Bagian Layar yang Bisa Dig
 seoTitle: "Bongkar Claude Code Mods: Hook dan Event"
 date: "2026-10-08"
 publishedTime: "2026-10-08T14:55:00Z"
-modifiedTime: "2026-10-12T02:15:00Z"
-description: "Panduan dari nol buat mod Claude Code: rantai hook, kapan tiap event dipanggil, bagian layar yang bisa digambar ulang, remote $, delapan contoh kasus, dan daftar lengkap 46 event."
+modifiedTime: "2026-10-19T02:27:00Z"
+description: "Panduan dari nol buat mod Claude Code: rantai hook, kapan tiap event dipanggil, bagian layar yang bisa digambar ulang, remote $, delapan contoh kasus, dan daftar lengkap 47 event."
 tags:
   [
     "Claude Code",
@@ -23,7 +23,7 @@ Mod itu satu file TypeScript yang nyelip di tengah kerjaan Claude Code. Setiap k
 
 Yang bikin saya kaget: mod bisa ngegambar ulang tampilan bawaan Claude Code. Tiap tool call bisa diganti jadi satu baris, jawaban model bisa digambar ulang pakai gaya lain, dan blok hasil tool bisa disembunyiin. Ini jauh lebih dalam dari sekadar nambah status line atau popup.
 
-Post ini panduan dari nol. Semua nama event, method, dan props di sini saya ambil dari type declaration yang ditulis Claude Code 2.1.296 sendiri. API-nya masih berlabel _early access_, jadi detailnya bisa berubah di rilis berikutnya. Perubahan yang udah masuk ke post ini saya catat di bagian [Pembaruan](#pembaruan).
+Post ini panduan dari nol. Semua nama event, method, dan props di sini saya ambil dari type declaration yang ditulis Claude Code 2.1.303 sendiri. API-nya masih berlabel _early access_, jadi detailnya bisa berubah di rilis berikutnya. Perubahan yang udah masuk ke post ini saya catat di bagian [Pembaruan](#pembaruan).
 
 ## Konsep Inti: Rantai Hook
 
@@ -71,6 +71,7 @@ import type { Register } from "claude-code";
 export const register: Register = (on, options) => {
   // tiap turn selesai, munculin toast
   on("turn.complete", async ($, e, next) => {
+    if (e.agentId !== undefined) return next(e); // turn subagent, lewatin
     $.ui.toast("Turn selesai");
     return next(e);
   });
@@ -212,12 +213,13 @@ on("prompt.submit", async ($, e, next) =>
 
 <PickPanel id="turn-start">
 
-`turn.start` jalan waktu turn model mulai, sebelum model call pertama.
+`turn.start` jalan waktu turn model mulai, sebelum model call pertama. Sejak 2.1.299, event ini juga jalan buat turn subagent dan teammate. Bedainnya lewat `e.agentId`, yang cuma ada di turn mereka.
 
 Biasanya dipakai buat reset tampilan atau counter punya mod. Mod `next-steps` misalnya, nyembunyiin saran prompt yang lama di sini.
 
 ```ts
 on("turn.start", async ($, e, next) => {
+  if (e.agentId !== undefined) return next(e); // turn subagent, lewatin
   saran = []; // buang saran lama
   $.ui.invalidate("ui.render"); // minta layar digambar ulang
   return next(e);
@@ -260,12 +262,13 @@ on("tool.call", { tool: "Bash" }, async ($, e, next) => {
 
 <PickPanel id="turn-complete">
 
-`turn.complete` jalan waktu turn selesai, pas durasinya dilaporin. Isi `e` di antaranya `e.reason` (misalnya `"answer"`), `e.answer`, dan `e.turnId`.
+`turn.complete` jalan waktu turn selesai, pas durasinya dilaporin. Isi `e` di antaranya `e.reason` (misalnya `"answer"`), `e.answer`, dan `e.turnId`. Kayak `turn.start`, event ini juga jalan buat turn subagent dan teammate, lengkap dengan `e.agentId`.
 
 Tempat yang pas buat toast, nyimpen ringkasan, atau minta saran ke model.
 
 ```ts
 on("turn.complete", async ($, e, next) => {
+  if (e.agentId !== undefined) return next(e);
   const result = await next(e);
   if (e.reason === "answer") $.ui.toast(`Jawaban ${e.answer.length} karakter`);
   return result;
@@ -541,7 +544,7 @@ on("ui.render", { component: "ToolUse" }, async ($, e, next) => {
     children: [
       Text({ color, children: ["●"] }),
       Text({ dimColor: true, children: ["tool_call: "] }),
-      Text({ bold: true, children: [e.props.tool] }),
+      Text({ weight: "bold", children: [e.props.tool] }),
     ],
   });
 });
@@ -574,12 +577,14 @@ Versi asli [buatan Thariq Shihipar](https://github.com/anthropics/claude-plugins
 let saran: string[] = [];
 
 on("turn.start", async ($, e, next) => {
+  if (e.agentId !== undefined) return next(e); // cuma loop utama
   saran = [];
   $.ui.invalidate("ui.render");
   return next(e);
 });
 
 on("turn.complete", async ($, e, next) => {
+  if (e.agentId !== undefined) return next(e); // jawaban subagent ga perlu saran
   const result = await next(e);
   if (e.reason !== "answer") return result;
   void (async () => {
@@ -656,6 +661,7 @@ on("prompt.submit", async ($, e, next) => {
 });
 
 on("turn.complete", async ($, e, next) => {
+  if (e.agentId !== undefined) return next(e);
   const seconds = Math.round(((await $.clock.now()) - startedAt) / 1000);
   if (seconds > 120) $.ui.toast(`Turn tadi ${seconds} detik`);
   return next(e);
@@ -754,9 +760,9 @@ on("agent.spawn", ($, e, next) => next({ ...e, model: "haiku" }));
 
 </Tabs>
 
-## Daftar Lengkap 46 Event
+## Daftar Lengkap 47 Event
 
-Ini semua event yang bisa dipasang di `on(...)` di Claude Code 2.1.296. Ketik buat nyari, atau pilih satu grup.
+Ini semua event yang bisa dipasang di `on(...)` di Claude Code 2.1.303. Ketik buat nyari, atau pilih satu grup.
 
 export const eventGroups = [
   {
@@ -830,6 +836,10 @@ export const eventGroups = [
         text: "Teks mau jadi ghost text abu-abu yang bisa diambil pakai Tab.",
       },
       { name: "prompt.edit", text: "Kamu ngedit isi kotak input." },
+      {
+        name: "prompt.change",
+        text: "Isi kotak input berubah tanpa diketik: history, dikosongin, undo, atau diisi plugin. Cuma bisa ngintip.",
+      },
       {
         name: "prompt.autocomplete",
         text: "Kamu lagi ngetik, buat token di posisi kursor.",
@@ -959,7 +969,7 @@ export const eventGroups = [
   empty="Ga ada event yang cocok."
 />
 
-Selain 46 itu masih ada dua keluarga lagi. Yang pertama `classic.*`, hook settings model lama kayak `classic.Stop` atau `classic.SessionEnd`, dengan `e` yang sama persis kayak yang mereka terima di stdin. Yang kedua semua panggilan `$` kayak `fs.read` atau `http.fetch`, yang udah dibahas di bagian remote tadi.
+Selain 47 itu masih ada dua keluarga lagi. Yang pertama `classic.*`, hook settings model lama kayak `classic.Stop` atau `classic.SessionEnd`, dengan `e` yang sama persis kayak yang mereka terima di stdin. Yang kedua semua panggilan `$` kayak `fs.read` atau `http.fetch`, yang udah dibahas di bagian remote tadi.
 
 ## Sebelum Install Mod Orang
 
@@ -979,7 +989,7 @@ Sebagai contoh, ini hasilnya buat tiga mod yang saya bahas di atas:
 | `glamour-dark` | `ui.render` (1 hook)                       | `ui.resolve`                                                  | ga ada                   |
 | `next-steps`   | `turn.start`, `turn.complete`, `ui.render` | `model.fork`, `command.list`, `prompt.fill`, `prompt.suggest` | satu call model per turn |
 
-Kalau kamu ngandelin mod penjaga, yang nolak tool call, nge-`drop` prompt, atau nge-`deny` panggilan `$` mod lain, pakai minimal Claude Code 2.1.296 (cek pakai `claude --version`). Versi sebelumnya punya tiga celah. Tool input yang nested dalam bisa kepotong tanpa error, jadi guard ngelolosin isi yang ga pernah dia liat. Panggilan dari mod yang lagi reload waktu plugin hooks worker restart juga bisa lolos dari guard yang pakai `.catch`. Sampai 2.1.295, Esc atau interrupt waktu hook `prompt.submit` masih jalan bisa ngelolosin prompt yang belum dicek.
+Kalau kamu ngandelin mod penjaga, yang nolak tool call, nge-`drop` prompt, atau nge-`deny` panggilan `$` mod lain, pakai minimal Claude Code 2.1.300 (cek pakai `claude --version`). Versi sebelumnya masih punya celah. Sampai 2.1.296, key `__proto__` bisa hilang diam-diam dari value yang diterima hook, dan itu bisa bikin guard `tool.check` ke-skip buat tool call yang dibikin mod lain. Subagent yang udah selesai atau teammate yang udah di-kill juga bisa di-resume tanpa lewat `agent.spawn`, jadi guard yang nolak subagent ga kepanggil. Action yang mestinya bisa diblok hook malah dilolosin kalau engine gagal ngasih action itu ke hook atau gagal nerima jawabannya. Sekarang action kayak gitu ditolak. Rewrite dari hook `prompt.submit` juga bisa hilang buat sebagian prompt yang bawa gambar, jadi prompt-nya kekirim persis kayak yang diketik. Sampai 2.1.299, prompt yang udah diubah atau di-`drop` hook `prompt.submit` masih kecatat versi ketikan aslinya di event OpenTelemetry `user_prompt` dan ikut kekirim waktu Claude Code bikin judul session.
 
 Kalau mau nyari inspirasi, katalog [awesome-claude-code-mods](https://github.com/karanb192/awesome-claude-code-mods) nge-scan GitHub dan nyatet akses tiap mod pakai validator yang sama. Mod buatan Anthropic sendiri (`diff`, `agents-md`, `sec-default`, `telemetry`) ada di [anthropics/claude-code](https://github.com/anthropics/claude-code/tree/main/mods), dan itu contoh kode yang paling bisa dipercaya.
 
@@ -1028,5 +1038,6 @@ Saya sendiri masih di tahap ngoprek. Kalau kamu udah bikin mod yang seru, kasih 
 
 ## Pembaruan
 
+- **19 Oktober 2026, Claude Code 2.1.303.** Event `prompt.change` masuk ke daftar, jadi sekarang 47 event. Versi minimal buat mod penjaga naik ke 2.1.300, karena 2.1.299 dan 2.1.300 nutup beberapa celah guard lagi. Sejak 2.1.299 `turn.start` juga jalan buat turn subagent dan teammate, jadi contoh `turn.start` dan `turn.complete` sekarang ngecek `e.agentId` dulu. Contoh `tool-lines` sekarang pakai `weight: "bold"`, karena `bold` udah deprecated.
 - **12 Oktober 2026, Claude Code 2.1.296.** Versi minimal buat mod penjaga naik ke 2.1.296, dan sekarang nyebut guard di `prompt.submit`. Daftar 46 event-nya ga berubah.
 - **9 Oktober 2026, Claude Code 2.1.295.** `$.ui.notify` masuk ke tabel `$` dan panel Toast. Bagian "Sebelum Install Mod Orang" sekarang nyebut versi minimal buat mod penjaga. Daftar 46 event-nya ga berubah.
