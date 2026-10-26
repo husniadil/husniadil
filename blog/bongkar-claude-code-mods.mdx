@@ -3,7 +3,7 @@ title: "Bongkar Claude Code Mods: Hook, Event, dan 15 Bagian Layar yang Bisa Dig
 seoTitle: "Bongkar Claude Code Mods: Hook dan Event"
 date: "2026-10-08"
 publishedTime: "2026-10-08T14:55:00Z"
-modifiedTime: "2026-10-19T02:27:00Z"
+modifiedTime: "2026-10-26T02:20:00Z"
 description: "Panduan dari nol buat mod Claude Code: rantai hook, kapan tiap event dipanggil, bagian layar yang bisa digambar ulang, remote $, delapan contoh kasus, dan daftar lengkap 47 event."
 tags:
   [
@@ -23,7 +23,7 @@ Mod itu satu file TypeScript yang nyelip di tengah kerjaan Claude Code. Setiap k
 
 Yang bikin saya kaget: mod bisa ngegambar ulang tampilan bawaan Claude Code. Tiap tool call bisa diganti jadi satu baris, jawaban model bisa digambar ulang pakai gaya lain, dan blok hasil tool bisa disembunyiin. Ini jauh lebih dalam dari sekadar nambah status line atau popup.
 
-Post ini panduan dari nol. Semua nama event, method, dan props di sini saya ambil dari type declaration yang ditulis Claude Code 2.1.303 sendiri. API-nya masih berlabel _early access_, jadi detailnya bisa berubah di rilis berikutnya. Perubahan yang udah masuk ke post ini saya catat di bagian [Pembaruan](#pembaruan).
+Post ini panduan dari nol. Semua nama event, method, dan props di sini saya ambil dari type declaration yang ditulis Claude Code 2.1.310 sendiri. API-nya masih berlabel _early access_, jadi detailnya bisa berubah di rilis berikutnya. Perubahan yang udah masuk ke post ini saya catat di bagian [Pembaruan](#pembaruan).
 
 ## Konsep Inti: Rantai Hook
 
@@ -762,7 +762,7 @@ on("agent.spawn", ($, e, next) => next({ ...e, model: "haiku" }));
 
 ## Daftar Lengkap 47 Event
 
-Ini semua event yang bisa dipasang di `on(...)` di Claude Code 2.1.303. Ketik buat nyari, atau pilih satu grup.
+Ini semua event yang bisa dipasang di `on(...)` di Claude Code 2.1.310. Ketik buat nyari, atau pilih satu grup.
 
 export const eventGroups = [
   {
@@ -976,7 +976,7 @@ Selain 47 itu masih ada dua keluarga lagi. Yang pertama `classic.*`, hook settin
 Mod jalan di dalam Claude Code, dan lewat `$` dia bisa baca file, jalanin program, dan akses internet. Lima hal ini cukup buat menilai satu mod dalam beberapa menit:
 
 1. **Cari `$.fs`, `$.process`, `$.http`, dan `$.env`.** Empat noun ini yang bisa nyentuh disk, shell, internet, dan token kamu. Mod tampilan harusnya ga butuh satu pun.
-2. **Cari `tool.call`, `prompt.submit`, `prompt.compose`, dan `session.send`.** Ini yang bisa ngubah apa yang dikerjain atau dibaca model.
+2. **Cari `tool.call`, `prompt.submit`, `prompt.compose`, `session.send`, dan `settings.read`.** Empat yang pertama bisa ngubah apa yang dikerjain atau dibaca model. Hook di `settings.read` bisa ngubah setting apa pun yang dibaca Claude Code, termasuk permission rules. Key yang nentuin plugin mana yang di-load juga bisa diubah, tapi baru berlaku di load berikutnya.
 3. **Cari `$.model`.** `fork` dan `complete` makan kuota model kamu tiap kali dipanggil.
 4. **Jalanin `claude plugin validate <folder>`.** Dia ngelaporin semua yang di-hook dan dipanggil module itu, plus semua yang bakal ditolak engine.
 5. **Pin commit-nya.** Kalau install-nya lewat clone, tiap `git pull` berarti kode baru jalan di dalam Claude Code. Baca diff-nya dulu.
@@ -997,7 +997,7 @@ Kalau mau nyari inspirasi, katalog [awesome-claude-code-mods](https://github.com
 
 ### 1. **Minta Claude Bikinin**
 
-Cara paling cepat: bilang "bikin mod yang ..." di session Claude Code. Skill `plugin-authoring` bawaannya nulis tiga file tadi di `~/.claude/dev-mods/<session>/<mod>/`, terus nanya "Enable hot reloading for this session?". Kalau dijawab enable, mod-nya langsung jalan begitu turn selesai.
+Cara paling cepat: bilang "bikin mod yang ..." di session Claude Code. Skill `plugin-authoring` bawaannya nulis tiga file tadi di `~/.claude/dev-mods/<session>/<mod>/`, terus nanya "Turn on the mods Claude writes in this session?". Kalau dijawab "Turn them on", mod-nya langsung jalan begitu turn selesai.
 
 ### 2. **Atau Jalanin Folder Sendiri**
 
@@ -1016,7 +1016,7 @@ claude plugin test ./mod-saya   # jalanin *.test.ts
 
 ### 4. **Kalau Mod-nya Diam Aja**
 
-Jalanin `claude --debug`. Hook yang gagal dan tree yang ditolak tercatat di debug log. Selama hot reload, transcript juga nampilin satu baris redup kayak `mod-saya: ui.render (ToolUse) refused: …; the engine drew its own`.
+Jalanin `claude --debug`. Hook yang gagal dan tree yang ditolak tercatat di debug log. Selama hot reload, transcript juga nampilin satu baris redup kayak `mod-saya: ui.render hook skipped: returned the wrong shape (a tree ToolUse refuses: …)`.
 
 ### 5. **Share**
 
@@ -1038,6 +1038,7 @@ Saya sendiri masih di tahap ngoprek. Kalau kamu udah bikin mod yang seru, kasih 
 
 ## Pembaruan
 
+- **26 Oktober 2026, Claude Code 2.1.310.** Bagian "Sebelum Install Mod Orang" sekarang nyebut `settings.read`, karena sejak 2.1.304 hook di event itu bisa ngubah setting yang dipakai Claude Code sendiri. Langkah pertama di "Bikin Mod Pertama" sekarang ngutip pertanyaan yang baru, "Turn on the mods Claude writes in this session?". Contoh baris transcript di langkah 4 sekarang pakai baris buat hook yang di-skip, karena tree yang ga valid dari satu hook sekarang dicatat lewat baris itu. Daftar 47 event-nya ga berubah.
 - **19 Oktober 2026, Claude Code 2.1.303.** Event `prompt.change` masuk ke daftar, jadi sekarang 47 event. Versi minimal buat mod penjaga naik ke 2.1.300, karena 2.1.299 dan 2.1.300 nutup beberapa celah guard lagi. Sejak 2.1.299 `turn.start` juga jalan buat turn subagent dan teammate, jadi contoh `turn.start` dan `turn.complete` sekarang ngecek `e.agentId` dulu. Contoh `tool-lines` sekarang pakai `weight: "bold"`, karena `bold` udah deprecated.
 - **12 Oktober 2026, Claude Code 2.1.296.** Versi minimal buat mod penjaga naik ke 2.1.296, dan sekarang nyebut guard di `prompt.submit`. Daftar 46 event-nya ga berubah.
 - **9 Oktober 2026, Claude Code 2.1.295.** `$.ui.notify` masuk ke tabel `$` dan panel Toast. Bagian "Sebelum Install Mod Orang" sekarang nyebut versi minimal buat mod penjaga. Daftar 46 event-nya ga berubah.
