@@ -1,9 +1,9 @@
 ---
-title: "Bongkar Claude Code Mods: Hook, Event, dan 15 Bagian Layar yang Bisa Diganti"
+title: "Bongkar Claude Code Mods: Hook, Event, dan 16 Bagian Layar yang Bisa Diganti"
 seoTitle: "Bongkar Claude Code Mods: Hook dan Event"
 date: "2026-10-08"
 publishedTime: "2026-10-08T14:55:00Z"
-modifiedTime: "2026-10-26T02:20:00Z"
+modifiedTime: "2026-11-02T02:29:00Z"
 description: "Panduan dari nol buat mod Claude Code: rantai hook, kapan tiap event dipanggil, bagian layar yang bisa digambar ulang, remote $, delapan contoh kasus, dan daftar lengkap 47 event."
 tags:
   [
@@ -23,7 +23,7 @@ Mod itu satu file TypeScript yang nyelip di tengah kerjaan Claude Code. Setiap k
 
 Yang bikin saya kaget: mod bisa ngegambar ulang tampilan bawaan Claude Code. Tiap tool call bisa diganti jadi satu baris, jawaban model bisa digambar ulang pakai gaya lain, dan blok hasil tool bisa disembunyiin. Ini jauh lebih dalam dari sekadar nambah status line atau popup.
 
-Post ini panduan dari nol. Semua nama event, method, dan props di sini saya ambil dari type declaration yang ditulis Claude Code 2.1.310 sendiri. API-nya masih berlabel _early access_, jadi detailnya bisa berubah di rilis berikutnya. Perubahan yang udah masuk ke post ini saya catat di bagian [Pembaruan](#pembaruan).
+Post ini panduan dari nol. Semua nama event, method, dan props di sini saya ambil dari type declaration yang ditulis Claude Code 2.1.316 sendiri. API-nya masih berlabel _early access_, jadi detailnya bisa berubah di rilis berikutnya. Perubahan yang udah masuk ke post ini saya catat di bagian [Pembaruan](#pembaruan).
 
 ## Konsep Inti: Rantai Hook
 
@@ -296,7 +296,7 @@ on("session.end", async ($, e, next) => {
 
 ## Bagian Layar yang Bisa Diganti
 
-Event `ui.render` bisa ngegambar ulang 15 component bawaan Claude Code. Gambar di bawah ini skematik, posisi persisnya bisa beda. Label di kanan tiap baris itu nama component-nya. Yang labelnya `$.ui.status` dan `$.ui.toast` diisi lewat method, dan kotak input sama sekali ga bisa digambar ulang. Klik baris mana aja buat lihat itu component apa dan mod mana yang udah ngutak-atiknya.
+Event `ui.render` bisa ngegambar ulang 16 component. Lima belas di antaranya bawaan Claude Code, dan yang ke-16 itu `Placed`, baris yang ditaruh mod sendiri lewat `$.ui.place`. Gambar di bawah ini skematik, posisi persisnya bisa beda. Label di kanan tiap baris itu nama component-nya. Label yang berawalan `$.ui.` itu method, bukan component, dan kotak input ga bisa digambar ulang sebagai component. Klik baris mana aja buat lihat itu component apa dan mod mana yang udah ngutak-atiknya.
 
 <TerminalMap
   title="claude ~/proyek"
@@ -316,6 +316,7 @@ Event `ui.render` bisa ngegambar ulang 15 component bawaan Claude Code. Gambar d
     { id: "ToolUse", text: "● Bash(npm test)", tag: "ToolUse" },
     { id: "ToolProgress", text: "  ⎿  Running… ctrl+b to run in background", tag: "ToolProgress", muted: true },
     { id: "Spinner", text: "✶ Sauteing… (12s, 300 tokens)", tag: "Spinner" },
+    { id: "Placed", text: "● build: 3 test gagal", tag: "$.ui.place", kind: "method" },
     { id: "AbovePrompt", text: "Last turn: 80s, 4 tool calls  [Hide]", tag: "AbovePrompt" },
     { id: "PromptInput", text: "> █", tag: "kotak input", kind: "locked" },
     { id: "PromptHint", text: "esc to interrupt", tag: "PromptHint", muted: true },
@@ -407,6 +408,14 @@ Bentuknya union berdasarkan `kind`, jadi match-nya pakai `{ props: { kind: "back
 
 </PickPanel>
 
+<PickPanel id="Placed">
+
+**`Placed`**: baris di ujung transcript yang ditaruh mod lewat `$.ui.place({ id })`. Isinya kosong sampai ada hook `ui.render` dengan matcher `{ component: "Placed" }` yang ngegambar. Hook itu dapet `e.props.id` sama `e.props.plugin`, jadi bisa tau baris itu punya mod mana.
+
+Baris ini cuma buat tampilan. Model dan file transcript ga pernah baca isinya, dan `--resume` ga ngembaliin barisnya.
+
+</PickPanel>
+
 <PickPanel id="AbovePrompt">
 
 **`AbovePrompt`**: band tepat di atas kotak input, tempat survey biasanya muncul. Bisa dilipet pakai `ctrl+x ctrl+a`.
@@ -417,9 +426,9 @@ Mod [`next-steps`](https://github.com/anthropics/claude-plugins-community/tree/m
 
 <PickPanel id="PromptInput">
 
-**Kotak input** ga ada di daftar 15 component itu, jadi ga bisa digambar ulang.
+**Kotak input** ga ada di daftar 16 component itu, jadi ga bisa digambar ulang sebagai component.
 
-Yang masih bisa: isi draft pakai `$.prompt.fill`, kasih ghost text pakai `$.prompt.suggest`, dan baca ketikan lewat event `prompt.edit` dan `prompt.autocomplete`. Dialog izin tool juga ga ada di daftar, tapi keputusan izinnya bisa di-hook lewat `tool.check`.
+Yang masih bisa: isi draft pakai `$.prompt.fill`, kasih ghost text pakai `$.prompt.suggest`, kasih bold atau underline di teks draft pakai `$.prompt.paint`, dan baca ketikan lewat event `prompt.edit` dan `prompt.autocomplete`. Dialog izin tool juga ga ada di daftar, tapi keputusan izinnya bisa di-hook lewat `tool.check`.
 
 </PickPanel>
 
@@ -469,27 +478,27 @@ Hook `ui.render` punya tiga cara ngegambar. `return next(e)` biarin tampilan baw
 
 Mod ga bisa nyentuh apa-apa secara langsung. Semuanya lewat `$.<noun>.<method>()`. Kolom terakhir nandain noun yang bisa nyentuh mesin atau internet kamu.
 
-| Noun                     | Buat apa                                                                                      | Method                                                            | Akses ke luar |
-| ------------------------ | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ------------- |
-| `$.ui`                   | Gambar, kasih tau, buka pane                                                                  | `status`, `toast`, `notify`, `open`, `close`, `log`, `invalidate` |               |
-| `$.audio`                | Bunyi dari file milik mod, atau ngomong                                                       | `play`, `speak`                                                   |               |
-| `$.model`                | `complete` satu call tanpa history, `fork` pakai context session, `classify` pilih satu label | `complete`, `fork`, `classify`                                    | kuota model   |
-| `$.tool`                 | Bikin tool baru buat model, namanya jadi `mcp__<plugin>__<name>`                              | `register`, `list`, `call`                                        |               |
-| `$.agent`                | Bikin tipe subagent baru, atau start satu                                                     | `register`, `spawn`, `list`                                       |               |
-| `$.command`              | Slash command punya mod                                                                       | `register`, `list`, `run`                                         |               |
-| `$.mcp`                  | Ngobrol sama MCP server                                                                       | `call`, `connect`                                                 |               |
-| `$.session`              | Isi conversation, usage, model, folder                                                        | `messages`, `usage`, `model`, `cwd`, `send`                       |               |
-| `$.prompt`               | Isi kotak input, tanpa pernah ngirim sendiri                                                  | `fill`, `suggest`, `read`                                         |               |
-| `$.turn`                 | Hentiin turn yang lagi jalan                                                                  | `abort`                                                           |               |
-| `$.config`, `$.settings` | Row `/config` dan baca settings                                                               | `config.set`, `settings.read`                                     |               |
-| `$.telemetry`            | Kirim record atau tandain pemakaian fitur                                                     | `log`, `mark`                                                     |               |
-| `$.state`                | Nilai selama session. Yang baca otomatis digambar ulang, dan nilainya selamat dari hot reload | `get`, `set`                                                      |               |
-| `$.store`                | Nilai yang awet lintas session                                                                | `get`, `set`, `keys`, `delete`                                    |               |
-| `$.clock`                | Jam dan timer                                                                                 | `now`, `after`, `every`, `sleep`                                  |               |
-| `$.fs`                   | Baca dan tulis file                                                                           | `read`, `write`, `list`, `exists`                                 | disk          |
-| `$.process`              | Jalanin program di mesin kamu                                                                 | `run`, `spawn`                                                    | shell         |
-| `$.http`                 | Request ke mana aja                                                                           | `fetch`                                                           | internet      |
-| `$.env`                  | Environment variable, termasuk token                                                          | `get`, `set`                                                      | secret        |
+| Noun                     | Buat apa                                                                                      | Method                                                                     | Akses ke luar |
+| ------------------------ | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ------------- |
+| `$.ui`                   | Gambar, kasih tau, buka pane                                                                  | `status`, `toast`, `notify`, `open`, `close`, `place`, `log`, `invalidate` |               |
+| `$.audio`                | Bunyi dari file milik mod, atau ngomong                                                       | `play`, `speak`                                                            |               |
+| `$.model`                | `complete` satu call tanpa history, `fork` pakai context session, `classify` pilih satu label | `complete`, `fork`, `classify`                                             | kuota model   |
+| `$.tool`                 | Bikin tool baru buat model, namanya jadi `mcp__<plugin>__<name>`                              | `register`, `list`, `call`                                                 |               |
+| `$.agent`                | Bikin tipe subagent baru, atau start satu                                                     | `register`, `spawn`, `list`                                                |               |
+| `$.command`              | Slash command punya mod                                                                       | `register`, `list`, `run`                                                  |               |
+| `$.mcp`                  | Ngobrol sama MCP server                                                                       | `call`, `connect`                                                          |               |
+| `$.session`              | Isi conversation, usage, model, folder                                                        | `messages`, `usage`, `model`, `cwd`, `send`                                |               |
+| `$.prompt`               | Isi kotak input, tanpa pernah ngirim sendiri                                                  | `fill`, `suggest`, `paint`, `read`                                         |               |
+| `$.turn`                 | Hentiin turn yang lagi jalan                                                                  | `abort`                                                                    |               |
+| `$.config`, `$.settings` | Row `/config` dan baca settings                                                               | `config.set`, `settings.read`                                              |               |
+| `$.telemetry`            | Kirim record atau tandain pemakaian fitur                                                     | `log`, `mark`                                                              |               |
+| `$.state`                | Nilai selama session. Yang baca otomatis digambar ulang, dan nilainya selamat dari hot reload | `get`, `set`                                                               |               |
+| `$.store`                | Nilai yang awet lintas session                                                                | `get`, `set`, `keys`, `delete`                                             |               |
+| `$.clock`                | Jam dan timer                                                                                 | `now`, `after`, `every`, `sleep`                                           |               |
+| `$.fs`                   | Baca dan tulis file                                                                           | `read`, `write`, `list`, `exists`                                          | disk          |
+| `$.process`              | Jalanin program di mesin kamu                                                                 | `run`, `spawn`                                                             | shell         |
+| `$.http`                 | Request ke mana aja                                                                           | `fetch`                                                                    | internet      |
+| `$.env`                  | Environment variable, termasuk token                                                          | `get`, `set`                                                               | secret        |
 
 Detail yang menarik: **panggilan `$` juga lewat rantai yang sama kayak event.** `fs.read`, `http.fetch`, dan `process.run` semuanya bisa di-hook. Artinya satu mod bisa nge-`deny` `$.http.fetch` punya mod lain.
 
@@ -762,7 +771,7 @@ on("agent.spawn", ($, e, next) => next({ ...e, model: "haiku" }));
 
 ## Daftar Lengkap 47 Event
 
-Ini semua event yang bisa dipasang di `on(...)` di Claude Code 2.1.310. Ketik buat nyari, atau pilih satu grup.
+Ini semua event yang bisa dipasang di `on(...)` di Claude Code 2.1.316. Ketik buat nyari, atau pilih satu grup.
 
 export const eventGroups = [
   {
@@ -1030,7 +1039,7 @@ Taruh `.claude-plugin/marketplace.json` di repo-nya. Orang lain cukup install pa
 
 - Mod itu satu file TypeScript yang nyelip di rantai hook. Setiap event lewat semua mod dulu, baru sampai ke perilaku bawaan engine.
 - Rumusnya cuma `on(event, matcher, hook)`, dan hook-nya cuma bisa empat hal: terusin, ubah dulu, jawab sendiri, atau baca hasilnya.
-- `ui.render` bisa ngegambar ulang 15 component bawaan. Kotak input dan dialog izin ga termasuk.
+- `ui.render` bisa ngegambar ulang 16 component: 15 bawaan Claude Code, plus `Placed` buat baris yang ditaruh mod. Kotak input dan dialog izin ga termasuk.
 - Semua akses ke luar lewat `$`, dan `$.fs`, `$.process`, `$.http`, serta `$.env` itu yang perlu dicek dulu sebelum install mod orang.
 - Hook yang error di-skip. Buat mod penjaga, selalu pasang `.catch`.
 
@@ -1038,6 +1047,7 @@ Saya sendiri masih di tahap ngoprek. Kalau kamu udah bikin mod yang seru, kasih 
 
 ## Pembaruan
 
+- **2 November 2026, Claude Code 2.1.316.** Komponen `ui.render` sekarang 16, karena `Placed` masuk daftar. Mod bisa naruh baris itu di ujung transcript lewat `$.ui.place`. `$.prompt.paint` juga baru, buat kasih bold atau underline di teks draft. Daftar 47 event-nya ga berubah.
 - **26 Oktober 2026, Claude Code 2.1.310.** Bagian "Sebelum Install Mod Orang" sekarang nyebut `settings.read`, karena sejak 2.1.304 hook di event itu bisa ngubah setting yang dipakai Claude Code sendiri. Langkah pertama di "Bikin Mod Pertama" sekarang ngutip pertanyaan yang baru, "Turn on the mods Claude writes in this session?". Contoh baris transcript di langkah 4 sekarang pakai baris buat hook yang di-skip, karena tree yang ga valid dari satu hook sekarang dicatat lewat baris itu. Daftar 47 event-nya ga berubah.
 - **19 Oktober 2026, Claude Code 2.1.303.** Event `prompt.change` masuk ke daftar, jadi sekarang 47 event. Versi minimal buat mod penjaga naik ke 2.1.300, karena 2.1.299 dan 2.1.300 nutup beberapa celah guard lagi. Sejak 2.1.299 `turn.start` juga jalan buat turn subagent dan teammate, jadi contoh `turn.start` dan `turn.complete` sekarang ngecek `e.agentId` dulu. Contoh `tool-lines` sekarang pakai `weight: "bold"`, karena `bold` udah deprecated.
 - **12 Oktober 2026, Claude Code 2.1.296.** Versi minimal buat mod penjaga naik ke 2.1.296, dan sekarang nyebut guard di `prompt.submit`. Daftar 46 event-nya ga berubah.
