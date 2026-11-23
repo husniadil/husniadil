@@ -1,10 +1,10 @@
 ---
-title: "Bongkar Claude Code Mods: Hook, Event, dan 18 Bagian Layar yang Bisa Diganti"
+title: "Bongkar Claude Code Mods: Hook, Event, dan 20 Bagian Layar yang Bisa Diganti"
 seoTitle: "Bongkar Claude Code Mods: Hook dan Event"
 date: "2026-10-08"
 publishedTime: "2026-10-08T14:55:00Z"
-modifiedTime: "2026-11-16T02:30:00Z"
-description: "Panduan dari nol buat mod Claude Code: rantai hook, kapan tiap event dipanggil, bagian layar yang bisa digambar ulang, remote $, delapan contoh kasus, dan daftar lengkap 47 event."
+modifiedTime: "2026-11-23T02:03:00Z"
+description: "Panduan dari nol buat mod Claude Code: rantai hook, kapan tiap event dipanggil, bagian layar yang bisa digambar ulang, remote $, delapan contoh kasus, dan daftar lengkap 59 event."
 tags:
   [
     "Claude Code",
@@ -23,7 +23,7 @@ Mod itu satu file TypeScript yang nyelip di tengah kerjaan Claude Code. Setiap k
 
 Yang bikin saya kaget: mod bisa ngegambar ulang tampilan bawaan Claude Code. Tiap tool call bisa diganti jadi satu baris, jawaban model bisa digambar ulang pakai gaya lain, dan blok hasil tool bisa disembunyiin. Ini jauh lebih dalam dari sekadar nambah status line atau popup.
 
-Post ini panduan dari nol. Semua nama event, method, dan props di sini saya ambil dari type declaration yang ditulis Claude Code 2.1.325 sendiri. API-nya masih berlabel _early access_, jadi detailnya bisa berubah di rilis berikutnya. Perubahan yang udah masuk ke post ini saya catat di bagian [Pembaruan](#pembaruan).
+Post ini panduan dari nol. Semua nama event, method, dan props di sini saya ambil dari type declaration yang ditulis Claude Code 2.1.330 sendiri. API-nya masih berlabel _early access_, jadi detailnya bisa berubah di rilis berikutnya. Perubahan yang udah masuk ke post ini saya catat di bagian [Pembaruan](#pembaruan).
 
 ## Konsep Inti: Rantai Hook
 
@@ -158,6 +158,8 @@ on("tool.call", { tool: "Bash" }, guard).catch(($, e, next) =>
 ```
 
 `next.called` ngasih tau hook-nya udah sempet manggil `next` atau belum. Kalau belum, `.catch` nolak.
+
+Dua event izin yang lebih baru sama aturannya. `tool.judge` jalan sebelum classifier auto mode, dan hook yang gagal di-skip, jadi classifier yang mutusin. Guard-nya pakai `.catch(() => ({ decision: "deny" }))`. `tool.run` jalan setelah tool call diizinkan dan tepat sebelum tool-nya jalan. Hook yang gagal di-skip dan tool-nya tetap jalan, jadi guard-nya pakai `.catch(($, e, next) => next.called ? next(e) : { deny: "guard-nya error" })`.
 
 ## Kapan Mod Dipanggil
 
@@ -296,7 +298,7 @@ on("session.end", async ($, e, next) => {
 
 ## Bagian Layar yang Bisa Diganti
 
-Event `ui.render` bisa ngegambar ulang 18 component. Enam belas di antaranya bawaan Claude Code. `Placed` itu baris yang ditaruh mod sendiri lewat `$.ui.place`, dan `Backdrop` itu latar yang dipasang mod lewat `$.theme.set`, cuma digambar di aplikasi desktop dan mobile. Karena itu `Backdrop` ga ada di gambar di bawah ini. Gambar ini skematik, posisi persisnya bisa beda. Label di kanan tiap baris itu nama component-nya. Label yang berawalan `$.ui.` itu method, bukan component, dan kotak input ga bisa digambar ulang sebagai component. Klik baris mana aja buat lihat itu component apa dan mod mana yang udah ngutak-atiknya.
+Event `ui.render` bisa ngegambar ulang 20 component. Delapan belas di antaranya bawaan Claude Code. `Placed` itu baris yang ditaruh mod sendiri lewat `$.ui.place`, dan `Backdrop` itu latar yang dipasang mod lewat `$.theme.set`, cuma digambar di aplikasi desktop dan mobile. Karena itu `Backdrop` ga ada di gambar di bawah ini. `ContextMenu` yang cuma ada di desktop dan `AgentRow` juga ga digambar di sini, keduanya dijelasin di bawah gambar. Gambar ini skematik, posisi persisnya bisa beda. Label di kanan tiap baris itu nama component-nya. Label yang berawalan `$.ui.` itu method, bukan component, dan kotak input ga bisa digambar ulang sebagai component. Klik baris mana aja buat lihat itu component apa dan mod mana yang udah ngutak-atiknya.
 
 <TerminalMap
   title="claude ~/proyek"
@@ -428,7 +430,7 @@ Event ini dipanggil sekali untuk tiap plugin yang nge-hook-nya, dan `e.plugin` n
 
 <PickPanel id="PromptInput">
 
-**Kotak input** ga ada di daftar 18 component itu, jadi ga bisa digambar ulang sebagai component.
+**Kotak input** ga ada di daftar 20 component itu, jadi ga bisa digambar ulang sebagai component.
 
 Yang masih bisa: isi draft pakai `$.prompt.fill`, kasih ghost text pakai `$.prompt.suggest`, kasih bold atau underline di teks draft pakai `$.prompt.paint`, dan baca ketikan lewat event `prompt.edit` dan `prompt.autocomplete`. Dialog izin tool juga ga ada di daftar, tapi keputusan izinnya bisa di-hook lewat `tool.check`.
 
@@ -472,13 +474,17 @@ Kalau dibuka karena kamu ngetik command atau mencet tombol, pane-nya langsung mu
 
 </TerminalMap>
 
-Satu yang ga kegambar di atas: `AskUserQuestion`, dialog pertanyaan pilihan ganda. Itu juga bisa di-hook.
+Tiga yang ga kegambar di atas. `AskUserQuestion` itu dialog pertanyaan pilihan ganda, dan itu juga bisa di-hook.
+
+`AgentRow` itu satu baris di daftar subagent dan teammate yang lagi jalan. Hook-nya dapet props `AgentInfo` agent itu, ditambah `rowIds`, `body`, dan `isHidden`. Isi `body` dengan teks buat gantiin kolom bawaan engine, atau set `isHidden: true` buat nyembunyiin barisnya. Event-nya dipanggil di semua surface, tapi desktop cuma nampilin satu baris dan ga nerima press di dalam tree.
+
+`ContextMenu` itu menu yang kebuka waktu kamu klik kanan sesuatu di transcript, dan cuma dipanggil di desktop. Engine ga gambar baris apa pun di sini, jadi mod yang nambahin. Hook-nya dapet props yang bilang pointer ada di mana (`row`, `link`, `selection`, atau `code`). Tiap `Button` yang dikembalikan jadi satu baris menu, dan `Link` ke alamat `https:` jadi baris yang buka alamat itu.
 
 Hook `ui.render` punya tiga cara ngegambar. `return next(e)` biarin tampilan bawaan. `next({ ...e, props })` ngubah props-nya dulu. Atau balikin tree sendiri pakai elemen dari `$.ui.resolve(e)`. Semua surface punya `Box`, `Text`, `Button`, `Link`, `Code`, dan `Markdown`. Terminal juga punya `Raster` (grid warna, cocok buat sparkline) dan `Image`.
 
 `e.surface` bisa `terminal`, `desktop`, `vscode`, atau `mobile`. Mod tampilan biasanya ngecek ini dulu, karena tree yang bagus di terminal belum tentu cocok di desktop. `Input` dan `Select` sekarang bisa digambar di mobile juga, asal aplikasinya nyebut keduanya di `draws`. Elemen `Progress` (label, value, max, valueText, color) juga baru: di semua surface dia jadi `Box` dan `Text`, kecuali di aplikasi mobile yang nyebutnya di `draws`.
 
-Component `Backdrop` cuma dipanggil di surface `desktop` dan `mobile`. Hook-nya dapet `e.props.scene`, `plugin`, `glass`, dan `overrideColorScheme`, dari apa yang dikasih ke `$.theme.set({ backdrop })`. Latar ini tampilan aja, `--resume` ga ngembaliinnya, dan mod yang di-unload ikut bawa latarnya. Pasang waktu `session.start`.
+Component `Backdrop` cuma dipanggil di surface `desktop` dan `mobile`. Hook-nya dapet `e.props.scene`, `plugin`, `glass`, dan `overrideColorScheme`, dari apa yang dikasih ke `$.theme.set({ backdrop })`. Latar ini tampilan aja, `--resume` ga ngembaliinnya, dan mod yang di-unload ikut bawa latarnya. Pasang waktu `session.start`. Latar juga bisa berupa elemen `Shader`, scene yang diputar di GPU desktop dari file `module` punya mod. Angka di `values`-nya bisa diubah hook `Backdrop`. Klik di latar yang ga ketutup bagian aplikasi masuk ke event `ui.pointer`, yang cuma didengar plugin yang masang temanya dan ga bisa diubah, jadi buat jawabnya ubah isi `Backdrop` terus gambar ulang.
 
 ## `$`: Remote ke Engine
 
@@ -490,10 +496,10 @@ Mod ga bisa nyentuh apa-apa secara langsung. Semuanya lewat `$.<noun>.<method>()
 | `$.audio`                | Bunyi dari file milik mod, atau ngomong                                                                                                                                                                               | `play`, `speak`                                                                            |               |
 | `$.model`                | `complete` satu call tanpa history, `fork` pakai context session, `classify` pilih satu label                                                                                                                         | `complete`, `fork`, `classify`                                                             | kuota model   |
 | `$.tool`                 | Bikin tool baru buat model, namanya jadi `mcp__<plugin>__<name>`                                                                                                                                                      | `register`, `list`, `call`                                                                 |               |
-| `$.agent`                | Bikin tipe subagent baru, atau start satu                                                                                                                                                                             | `register`, `spawn`, `list`                                                                |               |
+| `$.agent`                | Bikin tipe subagent baru, atau start satu                                                                                                                                                                             | `register`, `spawn`, `call`, `list`, `limits`                                              |               |
 | `$.command`              | Slash command punya mod                                                                                                                                                                                               | `register`, `list`, `run`                                                                  |               |
 | `$.mcp`                  | Ngobrol sama MCP server                                                                                                                                                                                               | `call`, `connect`                                                                          |               |
-| `$.session`              | Isi conversation, usage, model, folder                                                                                                                                                                                | `messages`, `usage`, `model`, `cwd`, `send`                                                |               |
+| `$.session`              | Isi conversation, usage, model, folder                                                                                                                                                                                | `messages`, `usage`, `model`, `cwd`, `send`, `machine`                                     |               |
 | `$.prompt`               | Isi kotak input, tanpa pernah ngirim sendiri                                                                                                                                                                          | `fill`, `suggest`, `paint`, `read`                                                         |               |
 | `$.theme`                | Tema session: latar (scene hidup atau latar diam: `color`, `gradient`, `vector`, `image`) dan palet `colors`. `set` ganti seluruh tema, jadi yang ga disebut hilang. `clear` ngapus tema mod mana pun yang lagi aktif | `set`, `clear`                                                                             |               |
 | `$.turn`                 | Hentiin turn yang lagi jalan                                                                                                                                                                                          | `abort`                                                                                    |               |
@@ -505,11 +511,12 @@ Mod ga bisa nyentuh apa-apa secara langsung. Semuanya lewat `$.<noun>.<method>()
 | `$.fs`                   | Baca dan tulis file                                                                                                                                                                                                   | `read`, `write`, `list`, `exists`                                                          | disk          |
 | `$.process`              | Jalanin program di mesin kamu                                                                                                                                                                                         | `run`, `spawn`                                                                             | shell         |
 | `$.http`                 | Request ke mana aja                                                                                                                                                                                                   | `fetch`                                                                                    | internet      |
+| `$.vcs`                  | Version control apa pun yang ngurus folder: cari working copy, diff, worktree (eksperimental)                                                                                                                         | `detect`, `diff`, `isolate`, `list`, `status`, `release`                                   |               |
 | `$.env`                  | Environment variable, termasuk token                                                                                                                                                                                  | `get`, `set`                                                                               | secret        |
 
 Detail yang menarik: **panggilan `$` juga lewat rantai yang sama kayak event.** `fs.read`, `http.fetch`, dan `process.run` semuanya bisa di-hook. Artinya satu mod bisa nge-`deny` `$.http.fetch` punya mod lain.
 
-`http.fetch` juga dipanggil buat setiap request model yang dikirim engine sendiri, dengan `next.origin.plugin === "engine"`. Hook bisa ngubah URL, header, dan body-nya, atau nolak. Header yang mungkin isi credential kebaca `[redacted]`. Di mesin yang punya guard organisasi, cuma mod milik organisasi itu yang ngelihat request engine. Satu lagi: `$.tool.call` ga munculin dialog izin, jadi hook yang ngirim ulang tool call model lewat situ jalanin perintahnya tanpa ada yang ditanya.
+`http.fetch` juga dipanggil buat setiap request model yang dikirim engine sendiri, dengan `next.origin.plugin === "engine"`. Hook bisa ngubah URL, header, dan body-nya, atau nolak. Header yang mungkin isi credential kebaca `[redacted]`. Di mesin yang punya guard organisasi, cuma mod milik organisasi itu yang ngelihat request engine. Satu lagi: `$.tool.call` ga munculin dialog izin, jadi hook yang ngirim ulang tool call model lewat situ jalanin perintahnya tanpa ada yang ditanya. Aturan deny di semua level juga ga berlaku buat panggilan ini, termasuk aturan managed milik organisasi dan `--disallowedTools`. Aturan itu cuma mengikat model dan subagent-nya. Kontrol organisasi atas mod itu `allowManagedModsOnly`, yang bikin mod milik orang ga di-load, plus apa yang ditinggalin mod milik organisasi itu sendiri di `$`. `$.agent.call` sama: panggilan dari dua-duanya sekarang cuma lewat hook yang dengerin (Tier), ga lagi lewat semua hook kecuali yang manggil. Di session yang bukan di mesin kamu (cloud, SSH, VM), panggilan ke device atau browser kamu ditolak begitu ada hook yang nulis, ngubah, atau ngejalanin ulang.
 
 ## Contoh Kasus
 
@@ -778,9 +785,9 @@ on("agent.spawn", ($, e, next) => next({ ...e, model: "haiku" }));
 
 </Tabs>
 
-## Daftar Lengkap 47 Event
+## Daftar Lengkap 59 Event
 
-Ini semua event yang bisa dipasang di `on(...)` di Claude Code 2.1.325. Ketik buat nyari, atau pilih satu grup.
+Ini semua event yang bisa dipasang di `on(...)` di Claude Code 2.1.330. Ketik buat nyari, atau pilih satu grup.
 
 export const eventGroups = [
   {
@@ -798,6 +805,18 @@ export const eventGroups = [
       {
         name: "tool.describe",
         text: "Schema tool pertama kali dirender buat model. Deskripsi tool bisa diubah di sini.",
+      },
+      {
+        name: "tool.judge",
+        text: "Auto mode mau nanya classifier-nya soal satu call. Hook yang gagal di-skip.",
+      },
+      {
+        name: "tool.run",
+        text: "Call udah diizinkan dan tool-nya tinggal jalan. Jalanin, jawab sendiri, atau tolak.",
+      },
+      {
+        name: "tool.offer",
+        text: "Engine nentuin tool mana yang ditawarin ke model. Bisa disembunyiin.",
       },
     ],
   },
@@ -823,6 +842,10 @@ export const eventGroups = [
         text: "Pilihan di Select yang digambar mod dipilih.",
       },
       { name: "ui.scroll", text: "Sebelum satu area layar ke-scroll." },
+      {
+        name: "ui.pointer",
+        text: "Latar diklik di bagian yang ga ketutup aplikasi. Cuma buat dilihat.",
+      },
       {
         name: "ui.focus",
         text: "Sebelum fokus pindah lewat Tab, panah, atau klik.",
@@ -919,6 +942,7 @@ export const eventGroups = [
         text: "Kiriman masuk ke session: event relay atau pesan peer.",
       },
       { name: "session.attach", text: "Client remote gabung ke session." },
+      { name: "session.stop", text: "Kamu mencet Stop. Cuma buat dilihat." },
       {
         name: "session.detach",
         text: "Client remote keluar, atau session-nya selesai.",
@@ -926,6 +950,36 @@ export const eventGroups = [
       {
         name: "session.measure",
         text: "Engine ngukur ulang session dan ada angka yang berubah.",
+      },
+    ],
+  },
+  {
+    id: "vcs",
+    title: "Version control",
+    items: [
+      {
+        name: "vcs.detect",
+        text: "Engine nanya folder ini working copy sistem apa.",
+      },
+      {
+        name: "vcs.diff",
+        text: "Mod nanya apa yang berubah di working copy selain Git.",
+      },
+      {
+        name: "vcs.isolate",
+        text: "Working copy baru dibutuhin, misalnya buat subagent dengan isolation worktree.",
+      },
+      {
+        name: "vcs.list",
+        text: "Daftar working copy dari repo yang megang satu path diminta.",
+      },
+      {
+        name: "vcs.status",
+        text: "Engine nanya apa yang berubah dan apa yang hilang kalau working copy dibuang.",
+      },
+      {
+        name: "vcs.release",
+        text: "Engine mau ngambil satu working copy. Bisa dijaga atau dibuang sendiri.",
       },
     ],
   },
@@ -953,6 +1007,10 @@ export const eventGroups = [
       {
         name: "agent.offer",
         text: "Engine nawarin satu tipe agent ke model. Bisa disembunyiin.",
+      },
+      {
+        name: "agent.report",
+        text: "Laporan subagent mau diterima parent-nya. Bisa diambil dulu lewat `consumed`.",
       },
       {
         name: "skill.prompt",
@@ -987,17 +1045,18 @@ export const eventGroups = [
   empty="Ga ada event yang cocok."
 />
 
-Selain 47 itu masih ada dua keluarga lagi. Yang pertama `classic.*`, hook settings model lama kayak `classic.Stop` atau `classic.SessionEnd`, dengan `e` yang sama persis kayak yang mereka terima di stdin. Yang kedua semua panggilan `$` kayak `fs.read` atau `http.fetch`, yang udah dibahas di bagian remote tadi.
+Selain 59 itu masih ada dua keluarga lagi. Yang pertama `classic.*`, hook settings model lama kayak `classic.Stop` atau `classic.SessionEnd`, dengan `e` yang sama persis kayak yang mereka terima di stdin. Yang kedua semua panggilan `$` kayak `fs.read` atau `http.fetch`, yang udah dibahas di bagian remote tadi.
 
 ## Sebelum Install Mod Orang
 
-Mod jalan di dalam Claude Code, dan lewat `$` dia bisa baca file, jalanin program, dan akses internet. Lima hal ini cukup buat menilai satu mod dalam beberapa menit:
+Mod jalan di dalam Claude Code, dan lewat `$` dia bisa baca file, jalanin program, dan akses internet. Enam hal ini cukup buat menilai satu mod dalam beberapa menit:
 
 1. **Cari `$.fs`, `$.process`, `$.http`, dan `$.env`.** Empat noun ini yang bisa nyentuh disk, shell, internet, dan token kamu. Mod tampilan harusnya ga butuh satu pun.
 2. **Cari `tool.call`, `prompt.submit`, `prompt.compose`, `session.send`, `tool.list`, `http.fetch`, dan `settings.read`.** Lima yang pertama bisa ngubah apa yang dikerjain atau dibaca model, dan `tool.list` bisa nambah atau ngapus tool buat model dan semua agent. `http.fetch` bisa ngintip atau ngubah request model yang dikirim engine. Hook di `settings.read` bisa ngubah setting apa pun yang dibaca Claude Code, termasuk permission rules. Key yang nentuin plugin mana yang di-load juga bisa diubah, tapi baru berlaku di load berikutnya.
 3. **Cari `$.model`.** `fork` dan `complete` makan kuota model kamu tiap kali dipanggil.
-4. **Jalanin `claude plugin validate <folder>`.** Dia ngelaporin semua yang di-hook dan dipanggil module itu, plus semua yang bakal ditolak engine.
-5. **Pin commit-nya.** Kalau install-nya lewat clone, tiap `git pull` berarti kode baru jalan di dalam Claude Code. Baca diff-nya dulu.
+4. **Cari `$.tool.call` dan `$.agent.call`.** Panggilan lewat dua ini jalan tanpa dialog izin dan ga kena aturan deny. Hook yang ngirim ulang tool call model lewat situ bertanggung jawab penuh atas inputnya.
+5. **Jalanin `claude plugin validate <folder>`.** Dia ngelaporin semua yang di-hook dan dipanggil module itu, plus semua yang bakal ditolak engine.
+6. **Pin commit-nya.** Kalau install-nya lewat clone, tiap `git pull` berarti kode baru jalan di dalam Claude Code. Baca diff-nya dulu.
 
 Sebagai contoh, ini hasilnya buat tiga mod yang saya bahas di atas:
 
@@ -1048,14 +1107,15 @@ Taruh `.claude-plugin/marketplace.json` di repo-nya. Orang lain cukup install pa
 
 - Mod itu satu file TypeScript yang nyelip di rantai hook. Setiap event lewat semua mod dulu, baru sampai ke perilaku bawaan engine.
 - Rumusnya cuma `on(event, matcher, hook)`, dan hook-nya cuma bisa empat hal: terusin, ubah dulu, jawab sendiri, atau baca hasilnya.
-- `ui.render` bisa ngegambar ulang 18 component: 16 bawaan Claude Code, plus `Placed` buat baris yang ditaruh mod dan `Backdrop` buat latar di desktop dan mobile. Kotak input dan dialog izin ga termasuk.
+- `ui.render` bisa ngegambar ulang 20 component: 18 bawaan Claude Code, plus `Placed` buat baris yang ditaruh mod dan `Backdrop` buat latar di desktop dan mobile. Kotak input dan dialog izin ga termasuk.
 - Semua akses ke luar lewat `$`, dan `$.fs`, `$.process`, `$.http`, serta `$.env` itu yang perlu dicek dulu sebelum install mod orang.
-- Hook yang error di-skip. Buat mod penjaga, selalu pasang `.catch`.
+- Hook yang error di-skip. Buat mod penjaga, selalu pasang `.catch`, termasuk di `tool.judge` dan `tool.run`.
 
 Saya sendiri masih di tahap ngoprek. Kalau kamu udah bikin mod yang seru, kasih tau saya, siapa tau bisa masuk post berikutnya 🚀
 
 ## Pembaruan
 
+- **23 November 2026, Claude Code 2.1.330.** Event sekarang 59, karena 12 masuk: `tool.judge`, `tool.run`, `tool.offer`, `agent.report`, `session.stop`, `ui.pointer`, dan enam `vcs.*`. Komponen `ui.render` sekarang 20, karena `AgentRow` dan `ContextMenu` masuk, dan latar `Backdrop` bisa berupa elemen `Shader`. Noun `$.vcs` baru, dan `$.agent` dapet `call` dan `limits`, `$.session` dapet `machine`. Bagian guard nyebut `.catch` buat `tool.judge` dan `tool.run`, dan checklist "Sebelum Install Mod Orang" nyebut bahwa `$.tool.call` dan `$.agent.call` ga kena aturan deny, plus `allowManagedModsOnly`. Versi minimal mod penjaga tetap 2.1.300. Claude Code 2.1.330 juga bawa easel, mod bawaan yang gambar chart.
 - **16 November 2026, Claude Code 2.1.325.** Komponen `ui.render` sekarang 18, karena `AbovePromptList` masuk, susunan baris di band atas kotak input. `AbovePrompt` sekarang dipanggil sekali per plugin. Props `Backdrop` berganti nama: `id` jadi `scene`, `colorScheme` jadi `overrideColorScheme`, dan `$.theme.set` sekarang juga nerima latar diam dan palet `colors`. `$.ui` dapet `cancelNotify`, dan `notify` punya options `key`, `delayMs`, `at`, `untilBack`. Request model dari engine sekarang lewat event `http.fetch`, jadi bagian "Sebelum Install Mod Orang" nyebut itu dan `tool.list`. Call `$.model` yang dijawab sekarang masuk `/cost`. Daftar 47 event-nya ga berubah.
 - **9 November 2026, Claude Code 2.1.319.** Komponen `ui.render` sekarang 17, karena `Backdrop` masuk, latar yang dipasang mod lewat `$.theme.set` dan cuma digambar di desktop dan mobile. Noun `$.theme` baru, isinya `set` dan `clear`. `$.model.fork` punya opsi `effort`. `Input` dan `Select` sekarang bisa digambar di mobile juga. Daftar 47 event-nya ga berubah.
 - **2 November 2026, Claude Code 2.1.316.** Komponen `ui.render` sekarang 16, karena `Placed` masuk daftar. Mod bisa naruh baris itu di ujung transcript lewat `$.ui.place`. `$.prompt.paint` juga baru, buat kasih bold atau underline di teks draft. Daftar 47 event-nya ga berubah.
